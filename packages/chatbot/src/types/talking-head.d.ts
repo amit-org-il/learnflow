@@ -237,7 +237,7 @@ export interface TalkingHead {
   setView?: (view: string) => void;
   setCameraView?: (view: string) => void;
   loadAvatar?: (url: string) => Promise<void>;
-  showAvatar?: (options: { url: string; body?: string; avatarMood?: string }) => Promise<void>;
+  showAvatar?: (options: { url: string; body?: string; avatarMood?: string; lipsyncLang?: string }, onProgress?: (progress: number) => void) => Promise<void>;
   deleteAvatar?: () => void;
   update?: (deltaTime: number) => void;
   setMouthShape?: (shape: MouthShapeValues) => void;
