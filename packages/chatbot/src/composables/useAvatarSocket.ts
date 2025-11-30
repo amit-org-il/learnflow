@@ -31,6 +31,8 @@ export interface ErrorInfo {
 export interface UseAvatarSocketOptions {
   /** Backend URL (e.g., 'http://localhost:8001') */
   url: string;
+  /** Chat ID from POST /chats - REQUIRED for session management */
+  chatId?: string;
   /** TTS provider for new sessions */
   provider?: 'azure' | 'gemini-live';
   /** Voice ID for new sessions */
@@ -52,6 +54,8 @@ export interface UseAvatarSocketOptions {
   onDisconnectWhileSpeaking?: () => void;
   onMaxReconnectAttemptsReached?: () => void;
   onInterrupt?: () => void;
+  /** Called when session expires and needs recreation */
+  onSessionExpired?: () => void;
 }
 
 export interface UseAvatarSocketReturn {
@@ -69,9 +73,10 @@ export interface UseAvatarSocketReturn {
   reconnectAttempts: ComputedRef<number>;
 
   // Actions
-  connect: () => void;
+  connect: (chatId?: string) => void;
   disconnect: () => void;
   retry: () => void;
+  updateChatId: (chatId: string) => void;
   sendReady: (avatarLoaded: boolean, ttsInitialized: boolean) => void;
   sendSpeechComplete: (messageId: string) => void;
   sendUserInterrupt: () => void;
@@ -91,6 +96,7 @@ export interface UseAvatarSocketReturn {
 export function useAvatarSocket(options: UseAvatarSocketOptions): UseAvatarSocketReturn {
   const {
     url,
+    chatId: initialChatId,
     provider = 'azure',
     voiceId,
     autoReconnect = true,
@@ -106,6 +112,7 @@ export function useAvatarSocket(options: UseAvatarSocketOptions): UseAvatarSocke
     onDisconnectWhileSpeaking,
     onMaxReconnectAttemptsReached,
     onInterrupt,
+    onSessionExpired,
   } = options;
 
   // ========================================
@@ -129,6 +136,7 @@ export function useAvatarSocket(options: UseAvatarSocketOptions): UseAvatarSocke
   let intentionalDisconnect = false;
   let wasSpeaking = false;
   const pendingMessages: SpeakMessage[] = [];
+  let currentChatId: string | undefined = initialChatId;
 
   // ========================================
   // HELPERS
@@ -165,7 +173,12 @@ export function useAvatarSocket(options: UseAvatarSocketOptions): UseAvatarSocke
   // ACTIONS
   // ========================================
 
-  function connect() {
+  function connect(chatId?: string) {
+    // Update chatId if provided
+    if (chatId) {
+      currentChatId = chatId;
+    }
+
     if (socket?.connected) {
       console.log('[useAvatarSocket] Already connected');
       return;
@@ -188,16 +201,24 @@ export function useAvatarSocket(options: UseAvatarSocketOptions): UseAvatarSocke
 
     // CRITICAL: Include /avatar namespace in URL
     const fullUrl = `${baseUrl}/avatar`;
-    console.log('[useAvatarSocket] Connecting to:', fullUrl);
+    console.log('[useAvatarSocket] Connecting to:', fullUrl, currentChatId ? `with chatId: ${currentChatId}` : '(no chatId)');
 
     try {
+      // Build query params - CRITICAL: include chatId if available
+      const query: Record<string, string> = {};
+      if (currentChatId) {
+        query.chatId = currentChatId;
+      }
+
       socket = io(fullUrl, {
         path: '/socket.io/',
+        query,
         // Auth for new sessions (backend controls session management)
         auth: {
           voice_id: voiceId,
           provider,
         },
+        transports: ['websocket'],
         reconnection: autoReconnect,
         reconnectionAttempts: maxReconnectAttempts,
         reconnectionDelay: 1000,
@@ -221,6 +242,17 @@ export function useAvatarSocket(options: UseAvatarSocketOptions): UseAvatarSocke
 
       socket.on('connect_error', (err) => {
         console.error('[useAvatarSocket] Connection error:', err);
+
+        // Check if session expired (backend will include these keywords in error)
+        const errorMessage = err.message.toLowerCase();
+        if (errorMessage.includes('session not found') ||
+            errorMessage.includes('invalid chatid') ||
+            errorMessage.includes('session expired') ||
+            errorMessage.includes('chat not found')) {
+          console.warn('[useAvatarSocket] Session expired, notifying parent');
+          onSessionExpired?.();
+        }
+
         setErrorState(createErrorInfo('connection', `Connection error: ${err.message}`, true));
       });
 
@@ -423,6 +455,22 @@ export function useAvatarSocket(options: UseAvatarSocketOptions): UseAvatarSocke
     isInterrupted.value = false;
   }
 
+  /**
+   * Update the chatId and reconnect with new session
+   * Used when session expires and a new session is created
+   */
+  function updateChatId(newChatId: string) {
+    console.log('[useAvatarSocket] Updating chatId:', newChatId);
+    currentChatId = newChatId;
+
+    // If connected, disconnect and reconnect with new chatId
+    if (socket) {
+      socket.disconnect();
+      socket.io.opts.query = { chatId: newChatId };
+      socket.connect();
+    }
+  }
+
   // ========================================
   // CLEANUP
   // ========================================
@@ -459,6 +507,7 @@ export function useAvatarSocket(options: UseAvatarSocketOptions): UseAvatarSocke
     connect,
     disconnect,
     retry,
+    updateChatId,
     sendReady,
     sendSpeechComplete,
     sendUserInterrupt,

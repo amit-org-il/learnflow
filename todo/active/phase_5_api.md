@@ -7,10 +7,10 @@
 
 ## Tasks
 
-- [ ] **5.1** Create `getApiBaseUrl()` helper - Centralized base URL management
-- [ ] **5.2** Create `useBot.ts` composable - Fetch bot config
-- [ ] **5.3** Create `useChat.ts` composable - Create/resume session
-- [ ] **5.4** Update Socket.IO connection to use `?chatId=xxx` with `/avatar` namespace
+- [x] **5.1** Create `getApiBaseUrl()` helper - Centralized base URL management
+- [x] **5.2** Create `useBot.ts` composable - Fetch bot config
+- [x] **5.3** Create `useAvatarChat.ts` composable - Create/resume session
+- [x] **5.4** Update Socket.IO connection to use `?chatId=xxx` with `/avatar` namespace
 
 ---
 

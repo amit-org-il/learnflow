@@ -22,13 +22,13 @@ Integrating TalkingHead 3D avatar with Azure TTS and Gemini Live support into th
 | 2 | TypeScript Types | ✅ Complete | 100% |
 | 3 | Vue Composables | ✅ Complete | 100% |
 | 4 | Vue Components | ✅ Complete | 100% |
-| 5 | API Integration | ⬜ Not Started | 0% |
+| 5 | API Integration | ✅ Complete | 100% |
 | 6 | Voice Input | ⬜ Not Started | 0% |
 | 7 | Streaming Text | ⬜ Not Started | 0% |
 | 8 | Avatar Caching | ⬜ Not Started | 0% |
 | 9 | Polish & Testing | ⬜ Not Started | 0% |
 
-**Overall Progress:** 4/9 phases (44%)
+**Overall Progress:** 5/9 phases (56%)
 
 ---
 
@@ -66,10 +66,11 @@ These decisions are documented in `HANDOFF_DOCUMENT.md` - **DO NOT change them**
 2. ~~Phase 2: TypeScript Types~~ ✅ Complete
 3. ~~Phase 3: Vue Composables~~ ✅ Complete
 4. ~~Phase 4: Vue Components~~ ✅ Complete
-5. **Next: Phase 5: API Integration**
-6. Follow phase files in order (some can run in parallel)
-7. Commit after each phase
-8. Push to fork and create PR when ready
+5. ~~Phase 5: API Integration~~ ✅ Complete
+6. **Next: Phase 6: Voice Input**
+7. Follow phase files in order (some can run in parallel)
+8. Commit after each phase
+9. Push to fork and create PR when ready
 
 ---
 
@@ -97,6 +98,30 @@ git push -u origin feature/avatar-integration
 ---
 
 ## 📝 Session Log
+
+### 2025-11-30 - Phase 5 Complete
+**Phase 5: API Integration** completed:
+- Created `src/config/api.ts` - Centralized `getApiBaseUrl()` and `getSocketUrl()` helpers
+- Created `src/composables/useBot.ts` - Fetch and manage bot configuration from API
+- Created `src/composables/useAvatarChat.ts` - Create/resume chat sessions with sessionStorage persistence
+- Updated `src/composables/useAvatarSocket.ts` - Added chatId query param support and session expiration handling
+- Created `.env.development` and `.env.production` environment config files
+- All builds pass successfully
+
+**Files Created:**
+- `packages/chatbot/src/config/api.ts` (40 lines)
+- `packages/chatbot/src/config/index.ts` (barrel export)
+- `packages/chatbot/src/composables/useBot.ts` (175 lines)
+- `packages/chatbot/src/composables/useAvatarChat.ts` (170 lines)
+- `packages/chatbot/.env.development`
+- `packages/chatbot/.env.production`
+
+**Files Modified:**
+- `packages/chatbot/src/composables/useAvatarSocket.ts` (added chatId, onSessionExpired, updateChatId)
+- `todo/active/phase_5_api.md` (marked tasks complete)
+- `STATUS.md` (updated progress)
+
+**Next Session:** Start Phase 6 - Voice Input
 
 ### 2025-11-30 - Phase 4 Complete
 **Phase 4: Vue Components** completed:
