@@ -20,7 +20,22 @@ export default defineConfig({
     }
   },
   optimizeDeps: {
-    exclude: ['@amit/adaptivity', '@amit/telemetry', '@amit/rules-builder', '@amit/chatbot'],
+    exclude: [
+      '@amit/adaptivity',
+      '@amit/telemetry',
+      '@amit/rules-builder',
+      '@amit/chatbot',
+      // TalkingHead modules - loaded at runtime from public folder
+      'talkinghead.mjs',
+      'lipsync-en.mjs',
+      'dynamicbones.mjs'
+    ],
     include: ['vue-renderer-markdown']
+  },
+  build: {
+    rollupOptions: {
+      // Don't bundle TalkingHead - loaded at runtime from public folder
+      external: ['/lib/talkinghead/talkinghead.mjs']
+    }
   }
 });
