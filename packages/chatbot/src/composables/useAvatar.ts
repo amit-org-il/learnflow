@@ -61,20 +61,58 @@ let TalkingHeadClass: any = null;
 
 /**
  * Load TalkingHead class dynamically from public folder
+ * Uses script injection to bypass Vite's import analysis
  */
 async function loadTalkingHeadClass(): Promise<any> {
   if (TalkingHeadClass) return TalkingHeadClass;
 
-  try {
-    // Dynamic import from public folder
-    // @ts-expect-error - This module is loaded at runtime from public folder
-    const module = await import('/lib/talkinghead/talkinghead.mjs');
-    TalkingHeadClass = module.TalkingHead;
+  // Check if already loaded via script tag
+  if ((window as any).TalkingHead) {
+    TalkingHeadClass = (window as any).TalkingHead;
     return TalkingHeadClass;
-  } catch (err) {
-    console.error('[useAvatar] Failed to load TalkingHead:', err);
-    throw new Error('Failed to load avatar engine. Please refresh the page.');
   }
+
+  return new Promise((resolve, reject) => {
+    // Create script element to load TalkingHead as a module
+    const script = document.createElement('script');
+    script.type = 'module';
+
+    // Inline module that imports TalkingHead and exposes it globally
+    script.textContent = `
+      import { TalkingHead } from '/lib/talkinghead/talkinghead.mjs';
+      window.TalkingHead = TalkingHead;
+      window.dispatchEvent(new CustomEvent('talkinghead-loaded'));
+    `;
+
+    const handleLoad = () => {
+      window.removeEventListener('talkinghead-loaded', handleLoad);
+      if ((window as any).TalkingHead) {
+        TalkingHeadClass = (window as any).TalkingHead;
+        console.log('[useAvatar] TalkingHead loaded via script injection');
+        resolve(TalkingHeadClass);
+      } else {
+        reject(new Error('TalkingHead not found after script load'));
+      }
+    };
+
+    const handleError = () => {
+      console.error('[useAvatar] Failed to load TalkingHead script');
+      reject(new Error('Failed to load avatar engine. Please refresh the page.'));
+    };
+
+    window.addEventListener('talkinghead-loaded', handleLoad);
+    script.onerror = handleError;
+
+    document.head.appendChild(script);
+
+    // Timeout fallback
+    setTimeout(() => {
+      if (!TalkingHeadClass) {
+        window.removeEventListener('talkinghead-loaded', handleLoad);
+        reject(new Error('TalkingHead load timeout'));
+      }
+    }, 10000);
+  });
 }
 
 export function useAvatar(options: UseAvatarOptions = {}): UseAvatarReturn {
