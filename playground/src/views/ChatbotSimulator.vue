@@ -164,9 +164,13 @@
           :rtl="chatRTL"
           :layout="'panel'"
           :supports-markdown="config.ui?.supportsMarkdown ?? true"
+          :current-chat-id="currentChatId"
           @submit="handleSubmit"
           @rtl-change="chatRTL = $event"
           @layout-change="handleLayoutChange"
+          @gemini-text="handleGeminiText"
+          @azure-text="handleAzureText"
+          @stop="handleStop"
         />
       </SplitterPanel>
     </Splitter>
@@ -184,9 +188,13 @@
         :rtl="chatRTL"
         :layout="'floating'"
         :supports-markdown="config.ui?.supportsMarkdown ?? true"
+        :current-chat-id="currentChatId"
         @submit="handleSubmit"
         @rtl-change="chatRTL = $event"
         @layout-change="handleLayoutChange"
+        @gemini-text="handleGeminiText"
+        @azure-text="handleAzureText"
+        @stop="handleStop"
       />
   </div>
 </template>
@@ -208,18 +216,19 @@ import {
 import type { ChatbotConfig, ChatMessage, ChatTransport } from '@amit/chatbot/vue';
 
 // Initial configuration
+// NOTE: Using local avatar backend for testing avatar integration
+// Change to remote backend when testing production botgen
 const initialConfig: ChatbotConfig = {
-  endpoint: 'https://botgen-dev-1031090991817.me-west1.run.app',
-  token: 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjdjNzQ5NTFmNjBhMDE0NzE3ZjFlMzA4ZDZiMjgwZjQ4ZjFlODhmZGEiLCJ0eXAiOiJKV1QifQ.eyJyb2xlIjpbInRlYWNoZXIiLCJlZGl0b3IiLCJhZG1pbiJdLCJzY2hvb2xJZHMiOlsiNjNjOTQ0YzkyNjEwOTE3M2VlNjdiNWM5IiwiNjNjOTQ0YzkyNjEwOTE3M2VlNjdiNWYwIiwiNjZiMjNkNDgxYWU0ZjIxODdjYTMxMGQzIl0sInllYXIiOjIwMjUsImZ1bGxOYW1lIjoi16nXmdeo15Qg15HXoNeq15XXqNeUIiwiaXNzIjoiaHR0cHM6Ly9zZWN1cmV0b2tlbi5nb29nbGUuY29tL2FtaXQtZGV2cyIsImF1ZCI6ImFtaXQtZGV2cyIsImF1dGhfdGltZSI6MTc2MDYzMjgxOCwidXNlcl9pZCI6IjYzYzk0NGNhMjYxMDkxNzNlZTY3YjYwYiIsInN1YiI6IjYzYzk0NGNhMjYxMDkxNzNlZTY3YjYwYiIsImlhdCI6MTc2NDAwMDc0MCwiZXhwIjoxNzY0MDA0MzQwLCJmaXJlYmFzZSI6eyJpZGVudGl0aWVzIjp7fSwic2lnbl9pbl9wcm92aWRlciI6ImN1c3RvbSJ9fQ.D4Iina0CN8wrW3mgoz542rc8zZWomTI7U2Kh1vOLNrP5px8Thfe6cxr8KmupC8mRKaF1P9aJUfv2AaP-Nmkbc7vaH3N_2PxDI__5RfZRYT40XyG0Ds_HWw66x0lh2zqo5sdy8zjO9myNXw8WQj1-K0i1Rqfeb8OdV-F1sAsGAwv3nA65P8w3aTYOkIRhWTyeR5vBQN3fWxC4RvdVe1bHBxx5t8SoArXSwjh3DyXbx4OPjiUKdLP15FOXN-jEyZS7s4fkeKvnQq5jZVHD0CwADweRF5izZ7tR_4TuN6mx_eRT3nJ1uM9IUcpOx2kJmGtRTj-ktU1hSXc_SV_CcUAOyg',
+  endpoint: 'http://localhost:8001', // Local avatar backend for testing
+  token: '', // No token needed for local backend
   streaming: true,
   timeout: 30000,
   useWebSocket: true,
-  botId: 'e4980dc5-7163-4826-99fc-3b97c0738c28',
+  botId: 'gemini-pirate', // Avatar-enabled bot (Captain Pete)
   meta: {
-    courseId: '6784e8749244a19d04eb31dc',
-    lessonId: '6784e8749244a19d04eb31e1',
-    pageId: '686b9ce72fa2409adb114e57',
-    // sttLang is always sent, no need to set here (will default to 'en-us')
+    courseId: 'test-course',
+    lessonId: 'test-lesson',
+    pageId: 'test-page',
   },
   ui: {
     supportsMarkdown: true,
@@ -257,56 +266,44 @@ const botInfo = computed(() => {
   return wsTransport?.botInfo?.value || null;
 });
 
-// Auto-connect when botId is available
+// Auto-connect ONLY on initial mount when botId is available
+// Bot switching should be done via "Update Config" button, not auto-reconnect
 watch(() => config.value.botId, async (botId, oldBotId) => {
   console.log('[ChatbotSimulator] botId watch triggered - botId:', botId, 'oldBotId:', oldBotId, 'wsTransport:', !!wsTransport);
-  
-  // Connect if botId is valid
-  if (botId && wsTransport) {
-    // Connect on initial mount (oldBotId is undefined) or if botId changed
-    const shouldConnect = oldBotId === undefined || (botId !== oldBotId);
-    
-    if (shouldConnect && !wsTransport.isConnected.value) {
-      try {
-        console.log('[ChatbotSimulator] Auto-connecting with botId:', botId);
-        await wsTransport.connect();
-        console.log('[ChatbotSimulator] Auto-connect successful');
-        console.log('[ChatbotSimulator] botInfo after connect:', wsTransport.botInfo?.value);
-        
-        // Wait for reactivity to update
-        await nextTick();
-        
-        // botInfo is set during connect() via createChat()
-        // Add welcome message if available and no messages yet
-        if (wsTransport.botInfo?.value?.welcome_message && chat.messages.value.length === 0) {
-          console.log('[ChatbotSimulator] Adding welcome message after auto-connect');
-          chat.addMessage('assistant', wsTransport.botInfo.value.welcome_message, {
-            welcome: true,
-            botId: wsTransport.botInfo.value.id,
-          });
-          // Auto-open chatbot if floating and closed
-          if (!chatbotExpanded.value && !chatbotOpen.value) {
-            console.log('[ChatbotSimulator] Auto-opening chatbot - welcome message added');
-            chatbotOpen.value = true;
-          }
+
+  // Only auto-connect on INITIAL mount (oldBotId is undefined)
+  // Don't reconnect on every keystroke - use "Update Config" button instead
+  if (botId && wsTransport && oldBotId === undefined && !wsTransport.isConnected.value) {
+    try {
+      console.log('[ChatbotSimulator] Initial auto-connecting with botId:', botId);
+      await wsTransport.connect();
+      console.log('[ChatbotSimulator] Auto-connect successful');
+      console.log('[ChatbotSimulator] botInfo after connect:', wsTransport.botInfo?.value);
+
+      // Wait for reactivity to update
+      await nextTick();
+
+      // botInfo is set during connect() via createChat()
+      // Add welcome message if available and no messages yet
+      if (wsTransport.botInfo?.value?.welcome_message && chat.messages.value.length === 0) {
+        console.log('[ChatbotSimulator] Adding welcome message after auto-connect');
+        chat.addMessage('assistant', wsTransport.botInfo.value.welcome_message, {
+          welcome: true,
+          botId: wsTransport.botInfo.value.id,
+        });
+        // Auto-open chatbot if floating and closed
+        if (!chatbotExpanded.value && !chatbotOpen.value) {
+          console.log('[ChatbotSimulator] Auto-opening chatbot - welcome message added');
+          chatbotOpen.value = true;
         }
-      } catch (err) {
-        console.error('[ChatbotSimulator] Auto-connect failed:', err);
       }
-    } else if (wsTransport.isConnected.value && botId !== oldBotId) {
-      // Reconnect if botId changed
-      console.log('[ChatbotSimulator] BotId changed, reconnecting...');
-      wsTransport.disconnect();
-      try {
-        await wsTransport.connect();
-      } catch (err) {
-        console.error('[ChatbotSimulator] Reconnect failed:', err);
-      }
-    } else {
-      console.log('[ChatbotSimulator] Already connected, skipping auto-connect');
+    } catch (err) {
+      console.error('[ChatbotSimulator] Auto-connect failed:', err);
     }
-  } else {
-    console.log('[ChatbotSimulator] No botId or wsTransport, skipping auto-connect');
+  } else if (oldBotId !== undefined && botId !== oldBotId) {
+    // Bot ID changed after initial mount - just log it, don't auto-reconnect
+    // User should click "Update Config" to apply the change
+    console.log('[ChatbotSimulator] BotId changed from', oldBotId, 'to', botId, '- click "Update Config" to apply');
   }
 }, { immediate: true });
 
@@ -416,28 +413,51 @@ const isConnected = computed(() => {
   return false;
 });
 
+// Chat ID for avatar socket connection
+const currentChatId = computed(() => {
+  return wsTransport?.currentChatId || '';
+});
+
 // Custom components for markdown rendering
 const customComponents = ref<Record<string, any>>({});
 
 async function updateConfig() {
   testingConnection.value = true;
   connectionResult.value = null;
-  
+
   try {
     // Update WebSocket transport config
     if (wsTransport) {
-      wsTransport.updateConfig(config.value);
-      
-      // Reconnect if already connected or if config changed significantly
+      // Always disconnect and reset session when updating config
+      // This ensures a fresh connection with new botId
       if (wsTransport.isConnected.value) {
-        // Disconnect and reconnect to apply new config
         wsTransport.disconnect();
       }
-      
-      // Reconnect with new config
+
+      // Reset session to clear chatId and botInfo
+      // This forces createChat() to be called with new botId
+      wsTransport.resetSession();
+
+      // Update config with new values
+      wsTransport.updateConfig(config.value);
+      console.log('[ChatbotSimulator] Config updated, botId:', config.value.botId);
+
+      // Connect with new config
       if (config.value.botId) {
         await wsTransport.connect();
+        console.log('[ChatbotSimulator] Connected with new botInfo:', wsTransport.botInfo?.value);
         connectionResult.value = { success: true };
+
+        // Clear existing messages for new bot
+        chat.clearMessages();
+
+        // Add welcome message for new bot if available
+        if (wsTransport.botInfo?.value?.welcome_message) {
+          chat.addMessage('assistant', wsTransport.botInfo.value.welcome_message, {
+            welcome: true,
+            botId: wsTransport.botInfo.value.id,
+          });
+        }
       } else {
         connectionResult.value = { success: false, error: 'Bot ID is required' };
       }
@@ -446,7 +466,7 @@ async function updateConfig() {
       wsTransport = new WebSocketTransport(config.value);
       setupTransportHandlers(wsTransport);
       chat.setTransport(wsTransport);
-      
+
       // Connect if botId is available
       if (config.value.botId) {
         await wsTransport.connect();
@@ -473,14 +493,72 @@ function handleLayoutChange(layout: 'floating' | 'sidebar' | 'panel') {
   }
 }
 
-async function handleSubmit(message: string) {
-  // Always send via chat (which uses transport if available)
-  // Transport will auto-connect if needed
-  await chat.sendMessage(message);
+async function handleSubmit(message: string, avatarMode?: boolean) {
+  if (avatarMode) {
+    // Avatar mode: just add user message to display, don't send via text transport
+    // (message already sent via avatar socket)
+    chat.addMessage('user', message);
+  } else {
+    // Normal mode: send via chat (which uses transport if available)
+    await chat.sendMessage(message);
+  }
+}
+
+// Track if we're currently streaming a Gemini response (single session, ignore per-chunk messageIds)
+let geminiStreamingActive = false;
+
+// Handle Gemini Live text chunks - stream into chat bubble in real-time
+// Note: Backend sends each chunk with a NEW messageId, so we ignore messageId and track streaming state ourselves
+function handleGeminiText(data: { messageId: string; textChunk: string; isFinal: boolean }) {
+  const { textChunk, isFinal } = data;
+
+  // Start streaming message on first chunk (if not already streaming)
+  if (!geminiStreamingActive && textChunk) {
+    geminiStreamingActive = true;
+    chat.startStreamingMessage({ source: 'gemini-live' });
+    console.log('[ChatbotSimulator] Started Gemini streaming');
+  }
+
+  // Append text chunk to streaming message
+  if (textChunk && geminiStreamingActive) {
+    chat.appendStreamChunk(textChunk);
+  }
+
+  // End streaming when final
+  if (isFinal && geminiStreamingActive) {
+    geminiStreamingActive = false;
+    chat.endStreamingMessage();
+    console.log('[ChatbotSimulator] Ended Gemini streaming');
+  }
+}
+
+// Handle Azure TTS text - add complete message to chat (not streaming, Azure sends full text)
+function handleAzureText(data: { messageId: string; text: string }) {
+  const { text } = data;
+  if (text) {
+    // addMessage expects separate arguments: (role, content, metadata, suggestions)
+    chat.addMessage('assistant', text);
+    console.log('[ChatbotSimulator] Added Azure text message:', text.substring(0, 50) + '...');
+  }
+}
+
+// Handle stop button click - end streaming and clear typing indicator
+function handleStop() {
+  console.log('[ChatbotSimulator] Stop button clicked - ending streaming');
+  // End any active streaming message
+  if (geminiStreamingActive) {
+    chat.endStreamingMessage();
+    geminiStreamingActive = false;
+  }
+  // Also end any regular streaming that might be happening
+  if (isStreaming.value) {
+    chat.endStreamingMessage();
+  }
 }
 
 function clearMessages() {
   chat.clearMessages();
+  geminiStreamingActive = false;
 }
 
 function resetStats() {

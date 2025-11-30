@@ -81,7 +81,7 @@ export interface UseAvatarSocketReturn {
   sendReady: (avatarLoaded: boolean, ttsInitialized: boolean) => void;
   sendSpeechComplete: (messageId: string) => void;
   sendUserInterrupt: () => void;
-  sendUserMessage: (text: string, language?: string) => void;
+  sendUserMessage: (text: string, language?: string, textOnly?: boolean) => void;
   sendUserVoice: (audioChunk: string, sampleRate: number, isFinal: boolean) => void;
   sendError: (error: string, details?: Record<string, unknown>) => void;
   setIsSpeaking: (speaking: boolean) => void;
@@ -406,9 +406,15 @@ export function useAvatarSocket(options: UseAvatarSocketOptions): UseAvatarSocke
     socket.emit('user_interrupt', { timestamp: Date.now() });
   }
 
-  function sendUserMessage(text: string, language?: string) {
+  function sendUserMessage(text: string, language?: string, textOnly?: boolean) {
     if (!socket?.connected) return;
-    socket.emit('user_message', { text, language, timestamp: Date.now() });
+    // textOnly: true sends only TEXT response (no audio), false/undefined sends TEXT + AVATAR (with audio)
+    socket.emit('user_message', {
+      text,
+      language,
+      timestamp: Date.now(),
+      text_only: textOnly ?? false  // Backend expects text_only flag
+    });
   }
 
   function sendUserVoice(audioChunk: string, sampleRate: number, isFinal: boolean) {

@@ -3,12 +3,12 @@
     <!-- Loading State -->
     <div v-if="isLoading" class="avatar-loading" role="status" aria-live="polite" aria-label="Loading avatar">
       <div class="avatar-loading__progress" aria-hidden="true">
-        {{ Math.round(loadingProgress) }}%
+        {{ loadingProgress || 0 }}%
       </div>
-      <div class="avatar-loading__bar" role="progressbar" :aria-valuenow="Math.round(loadingProgress)" aria-valuemin="0" aria-valuemax="100">
-        <div class="avatar-loading__fill" :style="{ width: `${loadingProgress}%` }" />
+      <div class="avatar-loading__bar" role="progressbar" :aria-valuenow="loadingProgress || 0" aria-valuemin="0" aria-valuemax="100">
+        <div class="avatar-loading__fill" :style="{ width: `${loadingProgress || 0}%` }" />
       </div>
-      <span class="sr-only">Loading avatar: {{ Math.round(loadingProgress) }} percent complete</span>
+      <span class="sr-only">Loading avatar: {{ loadingProgress || 0 }} percent complete</span>
     </div>
 
     <!-- Avatar Canvas -->
@@ -20,28 +20,8 @@
       <button @click="retry" type="button" aria-label="Retry loading avatar">Retry</button>
     </div>
 
-    <!-- Streaming Text Overlay (for Gemini Live) -->
-    <StreamingText
-      v-if="streamingText.hasContent.value && provider === 'gemini-live'"
-      :text-chunks="streamingText.textChunks.value"
-      :is-streaming="streamingText.isStreaming.value"
-      :dir="streamingText.textDirection.value"
-      class-name="avatar-streaming-text"
-      :max-height="120"
-      :show-clear-button="false"
-      @clear="streamingText.clearText"
-    />
-
-    <!-- Stop Button (visible when speaking) -->
-    <button
-      v-if="isSpeaking"
-      class="avatar-stop-button"
-      @click="handleStop"
-      type="button"
-      aria-label="Stop avatar speaking"
-    >
-      Stop
-    </button>
+    <!-- Streaming Text Overlay removed - text now shown in chat bubbles via gemini-text emit -->
+    <!-- Stop Button moved to ChatInput - shows as red square instead of mic when speaking -->
   </div>
 </template>
 
@@ -79,6 +59,10 @@ interface Emits {
   (e: 'speaking-end'): void;
   (e: 'error', error: string): void;
   (e: 'fallback'): void;
+  /** Emitted when Gemini Live text is received (for chat bubble display) */
+  (e: 'gemini-text', data: { messageId: string; textChunk: string; isFinal: boolean }): void;
+  /** Emitted when Azure TTS text is received (for chat bubble display) */
+  (e: 'azure-text', data: { messageId: string; text: string }): void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -91,6 +75,7 @@ const avatarRef = ref<HTMLElement | null>(null);
 const hasError = ref(false);
 const errorMessage = ref('');
 const fallbackMode = ref(false);
+const textOnlyMode = ref(false);  // When true, skip audio playback (muted)
 
 // Initialize avatar composable
 const avatar = useAvatar({
@@ -143,10 +128,43 @@ async function handleSpeak(message: SpeakMessage) {
   // Always process streaming text for Gemini Live messages (even in fallback mode)
   if (message.provider === 'gemini-live') {
     streamingText.handleSpeakMessage(message);
+
+    // Emit text to parent for chat bubble display
+    // Always emit when there's text OR when is_final (so parent knows stream ended)
+    const geminiMessage = message as GeminiSpeakMessage;
+    if (geminiMessage.text_chunk || geminiMessage.is_final) {
+      emit('gemini-text', {
+        messageId: geminiMessage.message_id,
+        textChunk: geminiMessage.text_chunk || '',
+        isFinal: geminiMessage.is_final,
+      });
+    }
   }
 
   if (fallbackMode.value) {
     // In fallback mode, just play audio without avatar
+    return;
+  }
+
+  // Text-only mode (muted) - show text but skip audio playback
+  if (textOnlyMode.value) {
+    console.log('[AvatarContainer] Text-only mode - skipping audio playback');
+    // For Azure, still emit text for chat bubble but skip TTS
+    if (message.provider === 'azure') {
+      const azureMessage = message as AzureSpeakMessage;
+      emit('azure-text', {
+        messageId: azureMessage.message_id,
+        text: azureMessage.text || '',
+      });
+      avatarSocket.sendSpeechComplete(azureMessage.message_id);
+    }
+    // For Gemini, text was already emitted above
+    if (message.provider === 'gemini-live') {
+      const geminiMessage = message as GeminiSpeakMessage;
+      if (geminiMessage.is_final) {
+        avatarSocket.sendSpeechComplete(geminiMessage.message_id);
+      }
+    }
     return;
   }
 
@@ -178,10 +196,39 @@ async function handleSpeak(message: SpeakMessage) {
         avatarSocket.sendSpeechComplete(geminiMessage.message_id);
         avatarSocket.setIsSpeaking(false);
       }
-    } else if (message.provider === 'azure' && azureTTS) {
+    } else if (message.provider === 'azure') {
+      console.log('[AvatarContainer] Azure provider detected, azureTTS:', azureTTS ? 'exists' : 'NULL', 'props.provider:', props.provider);
+
+      if (!azureTTS) {
+        console.error('[AvatarContainer] azureTTS is null! Component was created with wrong provider?');
+        emit('error', 'Azure TTS not initialized - provider mismatch');
+        return;
+      }
+
       const azureMessage = message as AzureSpeakMessage;
 
-      // Pass voiceConfig to speak()
+      // Emit text to parent for chat bubble display (Azure sends full text, not chunks)
+      console.log('[AvatarContainer] Emitting azure-text:', azureMessage.text?.substring(0, 50));
+      emit('azure-text', {
+        messageId: azureMessage.message_id,
+        text: azureMessage.text || '',
+      });
+      console.log('[AvatarContainer] AFTER azure-text emit, continuing to guard check');
+
+      // Guard against undefined/empty text from backend
+      if (!azureMessage.text || azureMessage.text.trim() === '') {
+        console.warn('[AvatarContainer] Empty text from backend, skipping Azure TTS speech');
+        avatarSocket.sendSpeechComplete(azureMessage.message_id);
+        avatarSocket.setIsSpeaking(false);
+        return;
+      }
+
+      // Pass voiceConfig to speak() - DEBUG v2
+      console.log('[AvatarContainer] About to call azureTTS.speak() with:', {
+        text: azureMessage.text?.substring(0, 30),
+        voiceConfig: props.voiceConfig,
+        timestamp: Date.now()
+      });
       await azureTTS.speak(azureMessage.text, props.voiceConfig);
       avatarSocket.sendSpeechComplete(azureMessage.message_id);
       avatarSocket.setIsSpeaking(false);
@@ -223,7 +270,8 @@ function handleAvatarControl(command: string, params: AvatarControlParams) {
 }
 
 function handleStop() {
-  avatar.stop();
+  // Only stop the audio/speech, NOT the avatar animations
+  // avatar.stop() would freeze the avatar completely - we don't want that
   if (geminiLipsync) {
     geminiLipsync.stop();
   }
@@ -232,6 +280,7 @@ function handleStop() {
   }
   avatarSocket.interruptSpeaking();
   streamingText.clearText();
+  avatarSocket.setIsSpeaking(false);
   emit('speaking-end');
 }
 
@@ -261,9 +310,6 @@ async function retry() {
 }
 
 onMounted(async () => {
-  // Unlock audio BEFORE initialization
-  await unlockAudio();
-
   // Null check before initialization
   if (!avatarRef.value) {
     console.error('[AvatarContainer] Container ref not available');
@@ -274,10 +320,16 @@ onMounted(async () => {
   }
 
   try {
-    // Initialize TalkingHead
+    // Start audio unlock in background (don't wait - audio only needed when speaking)
+    // This will resolve immediately if autoplay allowed, or wait for user gesture
+    unlockAudio().catch(err => {
+      console.warn('[AvatarContainer] Audio unlock failed (will retry on speak):', err);
+    });
+
+    // Initialize TalkingHead (doesn't require audio)
     await avatar.initialize(avatarRef.value);
 
-    // Load avatar model
+    // Load avatar model (doesn't require audio)
     await avatar.loadAvatar(props.modelUrl, props.gender);
 
     // Connect socket
@@ -312,6 +364,26 @@ onUnmounted(() => {
   if (azureTTS) {
     azureTTS.cleanup();
   }
+});
+
+// Expose methods for parent component to use
+defineExpose({
+  sendUserMessage: (text: string, language?: string, textOnly?: boolean) => {
+    // Set text-only mode to skip audio playback when response arrives
+    textOnlyMode.value = textOnly ?? false;
+    console.log('[AvatarContainer] sendUserMessage textOnly:', textOnly, '-> textOnlyMode:', textOnlyMode.value);
+    avatarSocket.sendUserMessage(text, language, textOnly);
+  },
+  sendUserVoice: (audioChunk: string, sampleRate: number, isFinal: boolean) => {
+    avatarSocket.sendUserVoice(audioChunk, sampleRate, isFinal);
+  },
+  stop: handleStop,
+  isConnected: avatarSocket.isConnected,
+  isSpeaking: avatarSocket.isSpeaking,
+  // Avatar view control
+  setView: (view: 'head' | 'upper' | 'full' | 'mid') => {
+    avatar.setView(view as any);
+  },
 });
 </script>
 
@@ -375,30 +447,6 @@ onUnmounted(() => {
   border: none;
   border-radius: 4px;
   cursor: pointer;
-}
-
-.avatar-stop-button {
-  position: absolute;
-  bottom: 1rem;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 0.5rem 1.5rem;
-  background: rgba(255, 0, 0, 0.8);
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: bold;
-}
-
-/* Streaming text overlay positioned at bottom */
-:deep(.avatar-streaming-text) {
-  position: absolute;
-  bottom: 3.5rem;
-  left: 0.5rem;
-  right: 0.5rem;
-  max-width: calc(100% - 1rem);
-  z-index: 10;
 }
 
 /* Screen reader only - visually hidden but accessible */

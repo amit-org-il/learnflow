@@ -147,6 +147,7 @@ export function useAvatar(options: UseAvatarOptions = {}): UseAvatarReturn {
       const TH = await loadTalkingHeadClass();
 
       avatarInstance.value = new TH(container, {
+        ttsEndpoint: '/gtts/', // Required by TalkingHead even if not using Google TTS
         cameraView: initialView,
         avatarMood: initialMood,
         lipsyncLang,
@@ -196,7 +197,9 @@ export function useAvatar(options: UseAvatarOptions = {}): UseAvatarReturn {
             lipsyncLang,
           },
           (progress: number) => {
-            _loadingProgress.value = Math.round(progress * 100);
+            // Guard against NaN/undefined from TalkingHead
+            const safeProgress = Number.isFinite(progress) ? progress : 0;
+            _loadingProgress.value = Math.round(safeProgress * 100);
           }
         );
 

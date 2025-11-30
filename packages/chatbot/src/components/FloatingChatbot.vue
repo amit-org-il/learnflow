@@ -98,8 +98,11 @@
 
       <div class="floating-chatbot__content">
         <!-- Avatar (if enabled) -->
+        <!-- Key forces recreation when provider changes (azure vs gemini-live have different audio handlers) -->
         <div v-if="isAvatarEnabled" class="floating-chatbot__media floating-chatbot__media--avatar">
           <AvatarContainer
+            :key="`avatar-${avatarConfig.provider}-${chatId}`"
+            ref="avatarContainerRef"
             :backend-url="backendUrl"
             :chat-id="chatId"
             :model-url="avatarConfig.url"
@@ -112,7 +115,33 @@
             @speaking-end="handleAvatarSpeakingEnd"
             @error="handleAvatarError"
             @fallback="handleAvatarFallback"
+            @gemini-text="handleGeminiText"
+            @azure-text="handleAzureText"
           />
+
+          <!-- Avatar Controls -->
+          <!-- View Toggle Button (head/body/full) - all bots -->
+          <ViewToggleButton
+            :current-view="currentView"
+            position="bottom-right"
+            @change="handleViewChange"
+          />
+
+          <!-- Bottom-left controls container -->
+          <div class="floating-chatbot__bottom-left-controls">
+            <!-- Mute Button - all avatar bots -->
+            <MuteButton
+              :is-muted="isMuted"
+              @change="handleMuteChange"
+            />
+
+            <!-- Speed Control (1.0x - 2.0x) - Azure bots only -->
+            <SpeedControl
+              v-if="isAzureBot"
+              :current-speed="currentSpeed"
+              @change="handleSpeedChange"
+            />
+          </div>
         </div>
 
         <!-- Video/Audio player area (fallback or non-avatar mode) -->
@@ -138,7 +167,9 @@
           :rtl="rtl"
           :supports-markdown="supportsMarkdown"
           :placeholder="rtl ? 'הקלידו משהו' : 'Type your message...'"
+          :is-speaking="isAvatarSpeaking"
           @submit="handleSubmit"
+          @stop="handleAvatarStop"
         />
       </div>
     </div>
@@ -149,6 +180,9 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import ChatContainer from './ChatContainer.vue';
 import AvatarContainer from './AvatarContainer.vue';
+import ViewToggleButton from './ViewToggleButton.vue';
+import SpeedControl from './SpeedControl.vue';
+import MuteButton from './MuteButton.vue';
 import { unlockAudio } from '../lib/audio/audio-unlock';
 import type { ChatMessage, BotInfo } from '../types.js';
 import type { VoiceConfig } from '../types/index';
@@ -169,11 +203,17 @@ interface Props {
 }
 
 interface Emits {
-  (e: 'submit', message: string): void;
+  (e: 'submit', message: string, avatarMode?: boolean): void;
   (e: 'toggle'): void;
   (e: 'update:modelValue', value: boolean): void;
   (e: 'layout-change', layout: 'floating' | 'sidebar' | 'panel'): void;
   (e: 'rtl-change', rtl: boolean): void;
+  /** Emitted when Gemini Live text is received (for chat bubble display) */
+  (e: 'gemini-text', data: { messageId: string; textChunk: string; isFinal: boolean }): void;
+  /** Emitted when Azure TTS text is received (for chat bubble display) */
+  (e: 'azure-text', data: { messageId: string; text: string }): void;
+  /** Emitted when stop button is clicked to interrupt avatar and streaming */
+  (e: 'stop'): void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -200,6 +240,12 @@ const currentLayout = ref<'floating' | 'sidebar' | 'panel'>(props.layout);
 const showVideo = ref(true);
 const idleVideoRef = ref<HTMLVideoElement | null>(null);
 const internalRTL = ref(props.rtl);
+const avatarContainerRef = ref<InstanceType<typeof AvatarContainer> | null>(null);
+
+// Avatar control state
+const currentView = ref<'head' | 'upper'>('head');
+const currentSpeed = ref(1.0);
+const isMuted = ref(false);  // When true, sends text_only requests (no audio)
 
 const botImage = computed(() => {
   // Force reactivity by accessing the prop directly
@@ -220,11 +266,17 @@ const rtl = computed(() => {
 
 // Avatar state
 const avatarFallbackMode = ref(false);
+const isAvatarSpeaking = ref(false);
 
 // Check if avatar is enabled for this bot
 const isAvatarEnabled = computed(() => {
   return props.botInfo?.supportedResponseTypes?.includes('avatar') &&
          !avatarFallbackMode.value;
+});
+
+// Check if Azure TTS provider (for showing speed control)
+const isAzureBot = computed(() => {
+  return (props.botInfo as any)?.tts?.provider === 'azure';
 });
 
 // Avatar configuration from bot info
@@ -233,7 +285,8 @@ const avatarConfig = computed(() => {
     voice: (props.botInfo as any)?.tts?.voice_id || 'en-US-JennyNeural',
     locale: (props.botInfo as any)?.tts?.locale || 'en-US',
     gender: (props.botInfo as any)?.avatar?.gender || 'female',
-    speakingRate: (props.botInfo as any)?.tts?.speaking_rate || 1.0,
+    // Use currentSpeed from state (reactive) - allows runtime speed changes
+    speakingRate: currentSpeed.value,
   };
 
   return {
@@ -279,7 +332,17 @@ function toggleRTL() {
 }
 
 function handleSubmit(message: string) {
-  emit('submit', message);
+  const usingAvatar = isAvatarEnabled.value && avatarContainerRef.value?.sendUserMessage;
+
+  // For avatar-enabled bots, send message through avatar socket
+  if (usingAvatar) {
+    const language = botLanguage.value || 'en-US';
+    const textOnly = isMuted.value;  // When muted, request text-only (no audio)
+    console.log('[FloatingChatbot] Sending message through avatar socket:', message, 'lang:', language, 'textOnly:', textOnly);
+    avatarContainerRef.value!.sendUserMessage(message, language, textOnly);
+  }
+  // Emit to parent with avatarMode flag (for display in chat UI, skip transport if avatar)
+  emit('submit', message, usingAvatar);
 }
 
 // Avatar event handlers
@@ -288,13 +351,13 @@ function handleAvatarReady() {
 }
 
 function handleAvatarSpeakingStart() {
-  // Optionally disable text input while speaking
   console.log('[FloatingChatbot] Avatar speaking started');
+  isAvatarSpeaking.value = true;
 }
 
 function handleAvatarSpeakingEnd() {
-  // Re-enable text input
   console.log('[FloatingChatbot] Avatar speaking ended');
+  isAvatarSpeaking.value = false;
 }
 
 function handleAvatarError(error: string) {
@@ -308,10 +371,63 @@ function handleAvatarFallback() {
   console.log('[FloatingChatbot] Fallback mode activated (no avatar)');
 }
 
+// Handle Gemini Live text - emit to parent for chat bubble display
+function handleGeminiText(data: { messageId: string; textChunk: string; isFinal: boolean }) {
+  emit('gemini-text', data);
+}
+
+// Handle Azure TTS text - emit to parent for chat bubble display
+function handleAzureText(data: { messageId: string; text: string }) {
+  console.log('[FloatingChatbot] handleAzureText received:', data.text?.substring(0, 50));
+  emit('azure-text', data);
+}
+
+// Handle view toggle (head/upper)
+function handleViewChange(view: 'head' | 'upper') {
+  console.log('[FloatingChatbot] View changed to:', view);
+  currentView.value = view;
+  // Call avatar's setView method
+  if (avatarContainerRef.value?.setView) {
+    avatarContainerRef.value.setView(view);
+  }
+}
+
+// Handle speed change (Azure TTS only)
+function handleSpeedChange(speed: number) {
+  console.log('[FloatingChatbot] Speed changed to:', speed);
+  currentSpeed.value = speed;
+  // The avatarConfig computed will pick up the new speed via currentSpeed.value
+  // and pass it to AvatarContainer's voiceConfig prop
+}
+
+// Handle mute toggle - when muted, send text_only requests (no audio)
+function handleMuteChange(muted: boolean) {
+  console.log('[FloatingChatbot] Mute changed to:', muted);
+  isMuted.value = muted;
+}
+
+// Handle stop button click from ChatInput
+function handleAvatarStop() {
+  console.log('[FloatingChatbot] Stop button clicked');
+  // Stop avatar audio
+  if (avatarContainerRef.value?.stop) {
+    avatarContainerRef.value.stop();
+  }
+  isAvatarSpeaking.value = false;
+  // Emit stop to parent to end streaming (typing indicator)
+  emit('stop');
+}
+
 // Watch for bot info changes (welcome message is handled by parent)
 watch(() => props.botInfo, (newBotInfo) => {
   console.log('[FloatingChatbot] botInfo prop changed:', newBotInfo);
   console.log('[FloatingChatbot] botImage:', botImage.value, 'botName:', botName.value);
+
+  // Initialize speed from bot config if available
+  const botSpeed = (newBotInfo as any)?.tts?.speaking_rate;
+  if (botSpeed && botSpeed !== currentSpeed.value) {
+    currentSpeed.value = botSpeed;
+  }
 }, { deep: true, immediate: true });
 </script>
 
@@ -374,6 +490,9 @@ watch(() => props.botInfo, (newBotInfo) => {
   width: 22.5rem;
   height: calc(100vh - 8rem);
   max-height: 37.5rem;
+  /* Prevent overlap with browser URL bar */
+  max-height: min(37.5rem, calc(100vh - 8rem));
+  max-height: min(37.5rem, calc(100dvh - 8rem)); /* Use dvh for mobile browsers */
 }
 
 /* RTL only affects content direction, not window position */
@@ -534,8 +653,8 @@ watch(() => props.botInfo, (newBotInfo) => {
 /* Increase window size when avatar is enabled */
 .floating-chatbot__window--floating.has-avatar {
   width: 25rem;         /* 400px - wider for avatar */
-  max-height: 56rem;    /* 896px - increased to fit avatar + messages */
-  height: calc(100vh - 4rem);  /* Use more screen space */
+  height: calc(100dvh - 8rem);  /* Use dvh for mobile browsers, leave space for URL bar */
+  max-height: min(56rem, calc(100dvh - 8rem));  /* Cap at 896px or viewport minus margins */
 }
 
 /* Sidebar mode with avatar */
@@ -592,6 +711,20 @@ watch(() => props.botInfo, (newBotInfo) => {
     right: 0.5rem;
     left: 0.5rem;
   }
+}
+
+/* ============================================
+   AVATAR CONTROL BUTTONS
+   ============================================ */
+
+/* Bottom-left controls container (mute + speed) */
+.floating-chatbot__bottom-left-controls {
+  position: absolute;
+  bottom: 0.5rem;
+  left: 0.5rem;
+  display: flex;
+  gap: 0.25rem;
+  z-index: 10;
 }
 </style>
 

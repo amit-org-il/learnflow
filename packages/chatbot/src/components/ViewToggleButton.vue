@@ -14,19 +14,19 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-const VIEW_CYCLE = ['head', 'body', 'full'] as const;
+// TalkingHead supports: 'full' | 'upper' | 'head' | 'mid'
+// We cycle between head and upper for simplicity
+const VIEW_CYCLE = ['head', 'upper'] as const;
 type ViewType = typeof VIEW_CYCLE[number];
 
 const VIEW_ICONS: Record<ViewType, string> = {
-  head: '😊',
-  body: '👤',
-  full: '🧍',
+  head: '🙂',
+  upper: '👕',
 };
 
 const VIEW_LABELS: Record<ViewType, string> = {
   head: 'Face',
-  body: 'Body',
-  full: 'Full',
+  upper: 'Upper',
 };
 
 interface Props {
@@ -83,13 +83,14 @@ function handleClick() {
   position: absolute;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.25rem;
-  padding: 0.5rem;
-  min-width: 44px;
-  min-height: 44px;
+  padding: 0.35rem;
+  min-width: 32px;
+  min-height: 32px;
   background: rgba(0, 0, 0, 0.5);
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   color: white;
   cursor: pointer;
   transition: all 0.2s;
@@ -126,7 +127,7 @@ function handleClick() {
 }
 
 .view-toggle__icon {
-  font-size: 1.25rem;
+  font-size: 1rem;
 }
 
 .view-toggle__label {
