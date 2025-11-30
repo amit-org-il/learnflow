@@ -168,8 +168,13 @@
           :supports-markdown="supportsMarkdown"
           :placeholder="rtl ? 'הקלידו משהו' : 'Type your message...'"
           :is-speaking="isAvatarSpeaking"
+          :is-gemini-live="isGeminiLive"
+          :is-live-voice-recording="isLiveVoiceRecording"
+          :is-live-voice-initializing="isLiveVoiceInitializing"
+          :live-voice-volume="liveVoiceVolume"
           @submit="handleSubmit"
           @stop="handleAvatarStop"
+          @live-voice-toggle="handleLiveVoiceToggle"
         />
       </div>
     </div>
@@ -184,6 +189,7 @@ import ViewToggleButton from './ViewToggleButton.vue';
 import SpeedControl from './SpeedControl.vue';
 import MuteButton from './MuteButton.vue';
 import { unlockAudio } from '../lib/audio/audio-unlock';
+import { useVoiceRecording } from '../composables/useVoiceRecording';
 import type { ChatMessage, BotInfo } from '../types.js';
 import type { VoiceConfig } from '../types/index';
 
@@ -278,6 +284,65 @@ const isAvatarEnabled = computed(() => {
 const isAzureBot = computed(() => {
   return (props.botInfo as any)?.tts?.provider === 'azure';
 });
+
+// Check if Gemini Live provider (for showing live voice button)
+const isGeminiLive = computed(() => {
+  return (props.botInfo as any)?.tts?.provider === 'gemini-live';
+});
+
+// Live Voice Recording state (for Gemini Live)
+const liveVoiceRecording = ref<ReturnType<typeof useVoiceRecording> | null>(null);
+
+// Initialize voice recording when component mounts and it's Gemini Live
+function setupVoiceRecording() {
+  if (!isGeminiLive.value || !avatarContainerRef.value) {
+    liveVoiceRecording.value = null;
+    return;
+  }
+
+  liveVoiceRecording.value = useVoiceRecording({
+    sampleRate: 16000,
+    vadThreshold: 0.15,
+    interruptOnStart: true,
+    onAudioChunk: (base64, sampleRate, isFinal) => {
+      // Send audio to avatar socket
+      if (avatarContainerRef.value?.sendUserVoice) {
+        avatarContainerRef.value.sendUserVoice(base64, sampleRate, isFinal);
+      }
+    },
+    onInterruptSpeech: () => {
+      // Stop avatar speaking when user starts talking
+      if (avatarContainerRef.value?.stop) {
+        avatarContainerRef.value.stop();
+      }
+    },
+    onStart: () => {
+      console.log('[FloatingChatbot] Live voice recording started');
+    },
+    onStop: () => {
+      console.log('[FloatingChatbot] Live voice recording stopped');
+    },
+    onError: (err) => {
+      console.error('[FloatingChatbot] Live voice error:', err);
+    },
+  });
+}
+
+// Live voice computed state (safe access)
+const isLiveVoiceRecording = computed(() => liveVoiceRecording.value?.state.isRecording.value ?? false);
+const isLiveVoiceInitializing = computed(() => liveVoiceRecording.value?.state.isInitializing.value ?? false);
+const liveVoiceVolume = computed(() => liveVoiceRecording.value?.state.volumeLevel.value ?? 0);
+
+// Handle live voice toggle
+function handleLiveVoiceToggle() {
+  if (!liveVoiceRecording.value) {
+    // Initialize on first use
+    setupVoiceRecording();
+  }
+  if (liveVoiceRecording.value) {
+    liveVoiceRecording.value.actions.toggleRecording();
+  }
+}
 
 // Avatar configuration from bot info
 const avatarConfig = computed(() => {

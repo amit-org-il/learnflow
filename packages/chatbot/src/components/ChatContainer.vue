@@ -27,7 +27,14 @@
       :loading="!!(isLoading || isStreaming)"
       :placeholder="placeholder"
       :rtl="rtl"
+      :is-speaking="isSpeaking"
+      :is-gemini-live="isGeminiLive"
+      :is-live-voice-recording="isLiveVoiceRecording"
+      :is-live-voice-initializing="isLiveVoiceInitializing"
+      :live-voice-volume="liveVoiceVolume"
       @submit="handleSubmit"
+      @stop="handleStop"
+      @live-voice-toggle="handleLiveVoiceToggle"
     />
   </div>
 </template>
@@ -47,11 +54,25 @@ interface Props {
   rtl?: boolean;
   placeholder?: string;
   supportsMarkdown?: boolean;
+  /** Whether avatar is currently speaking (shows stop button instead of mic) */
+  isSpeaking?: boolean;
+  /** Whether this is a Gemini Live bot (shows live voice button) */
+  isGeminiLive?: boolean;
+  /** Whether live voice recording is active */
+  isLiveVoiceRecording?: boolean;
+  /** Whether live voice is initializing */
+  isLiveVoiceInitializing?: boolean;
+  /** Live voice volume level (0-1) */
+  liveVoiceVolume?: number;
 }
 
 interface Emits {
   (e: 'submit', message: string): void;
   (e: 'suggestionClick', suggestion: import('../types.js').Suggestion): void;
+  /** Emitted when stop button is clicked to interrupt avatar */
+  (e: 'stop'): void;
+  /** Emitted when live voice button is toggled */
+  (e: 'live-voice-toggle'): void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -62,6 +83,11 @@ const props = withDefaults(defineProps<Props>(), {
   rtl: false,
   placeholder: 'Type your message...',
   supportsMarkdown: true,
+  isSpeaking: false,
+  isGeminiLive: false,
+  isLiveVoiceRecording: false,
+  isLiveVoiceInitializing: false,
+  liveVoiceVolume: 0,
 });
 
 const emit = defineEmits<Emits>();
@@ -121,6 +147,14 @@ function scrollToBottom() {
 
 function handleSubmit(message: string) {
   emit('submit', message);
+}
+
+function handleStop() {
+  emit('stop');
+}
+
+function handleLiveVoiceToggle() {
+  emit('live-voice-toggle');
 }
 
 onMounted(() => {

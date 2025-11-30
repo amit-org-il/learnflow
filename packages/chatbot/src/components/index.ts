@@ -16,4 +16,7 @@ export { default as StreamingText } from './StreamingText.vue';
 export { default as VoiceRecorder } from './VoiceRecorder.vue';
 export { default as ViewToggleButton } from './ViewToggleButton.vue';
 export { default as BotSelector } from './BotSelector.vue';
+export { default as MuteButton } from './MuteButton.vue';
+export { default as SpeedControl } from './SpeedControl.vue';
+export { default as LiveVoiceButton } from './LiveVoiceButton.vue';
 

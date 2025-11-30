@@ -11,7 +11,39 @@
           @keyup.enter="handleSubmit"
         />
       </div>
+
+      <!-- Live Voice Button (Gemini Live only - left of mic) -->
+      <LiveVoiceButton
+        v-if="isGeminiLive"
+        :is-recording="isLiveVoiceRecording"
+        :is-initializing="isLiveVoiceInitializing"
+        :volume-level="liveVoiceVolume"
+        :disabled="disabled"
+        @toggle="handleLiveVoiceToggle"
+      />
+
+      <!-- Stop Button (when avatar is speaking) -->
       <button
+        v-if="isSpeaking"
+        class="chat-input__stop-btn"
+        @click="handleStopClick"
+        aria-label="Stop avatar speaking"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          class="chat-input__stop-icon"
+        >
+          <rect x="6" y="6" width="12" height="12" rx="1" />
+        </svg>
+      </button>
+
+      <!-- Voice/Mic Button (when avatar is NOT speaking) -->
+      <button
+        v-else
         class="chat-input__voice-btn"
         :disabled="disabled"
         @click="handleVoiceClick"
@@ -58,6 +90,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue';
+import LiveVoiceButton from './LiveVoiceButton.vue';
 
 interface Props {
   modelValue: string;
@@ -65,12 +98,26 @@ interface Props {
   loading?: boolean;
   placeholder?: string;
   rtl?: boolean;
+  /** Whether avatar is currently speaking (shows stop button instead of mic) */
+  isSpeaking?: boolean;
+  /** Whether this is a Gemini Live bot (shows live voice button) */
+  isGeminiLive?: boolean;
+  /** Whether live voice recording is active */
+  isLiveVoiceRecording?: boolean;
+  /** Whether live voice is initializing */
+  isLiveVoiceInitializing?: boolean;
+  /** Live voice volume level (0-1) */
+  liveVoiceVolume?: number;
 }
 
 interface Emits {
   (e: 'update:modelValue', value: string): void;
   (e: 'submit', value: string): void;
   (e: 'voice-toggle', value: boolean): void;
+  /** Emitted when stop button is clicked to interrupt avatar */
+  (e: 'stop'): void;
+  /** Emitted when live voice button is toggled */
+  (e: 'live-voice-toggle'): void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -78,6 +125,11 @@ const props = withDefaults(defineProps<Props>(), {
   loading: false,
   placeholder: 'Type your message...',
   rtl: false,
+  isSpeaking: false,
+  isGeminiLive: false,
+  isLiveVoiceRecording: false,
+  isLiveVoiceInitializing: false,
+  liveVoiceVolume: 0,
 });
 
 const emit = defineEmits<Emits>();
@@ -167,7 +219,7 @@ function handleVoiceClick() {
     console.warn('Speech recognition not supported in this browser');
     return;
   }
-  
+
   if (isListening.value) {
     recognition.stop();
     isListening.value = false;
@@ -177,6 +229,16 @@ function handleVoiceClick() {
     isListening.value = true;
   }
   emit('voice-toggle', isListening.value);
+}
+
+function handleStopClick() {
+  console.log('[ChatInput] Stop button clicked');
+  emit('stop');
+}
+
+function handleLiveVoiceToggle() {
+  console.log('[ChatInput] Live voice toggle clicked');
+  emit('live-voice-toggle');
 }
 </script>
 
@@ -251,6 +313,41 @@ function handleVoiceClick() {
 .chat-input__voice-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Stop button - red square when avatar is speaking */
+.chat-input__stop-btn {
+  height: 2.5rem;
+  width: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(220, 38, 38, 1);
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  flex-shrink: 0;
+  animation: pulse-stop 1.5s ease-in-out infinite;
+}
+
+.chat-input__stop-btn:hover {
+  background-color: rgba(185, 28, 28, 1);
+}
+
+.chat-input__stop-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+@keyframes pulse-stop {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(220, 38, 38, 0);
+  }
 }
 
 .chat-input__voice-icon {
