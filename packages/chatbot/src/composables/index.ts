@@ -18,6 +18,7 @@ export { useGeminiLipsync } from './useGeminiLipsync';
 export { useVoiceRecording } from './useVoiceRecording';
 export { useStreamingText } from './useStreamingText';
 export { useBot } from './useBot';
+export { useBots } from './useBots';
 
 /**
  * Re-export types
@@ -34,3 +35,9 @@ export type {
   UseStreamingTextOptions,
   UseStreamingTextReturn,
 } from './useStreamingText';
+
+export type {
+  BotSummary,
+  UseBotsOptions,
+  UseBotsReturn,
+} from './useBots';

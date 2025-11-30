@@ -5,6 +5,7 @@ import FlowSimulator from '../views/FlowSimulator.vue';
 import RulesSimulator from '../views/RulesSimulator.vue';
 import DemoView from '../views/DemoView.vue';
 import ChatbotSimulator from '../views/ChatbotSimulator.vue';
+import AvatarDemo from '../views/AvatarDemo.vue';
 
 const routes = [
   {
@@ -46,6 +47,12 @@ const routes = [
     name: 'chatbot',
     component: ChatbotSimulator,
     meta: { title: 'Chatbot Simulator' }
+  },
+  {
+    path: '/avatar',
+    name: 'avatar',
+    component: AvatarDemo,
+    meta: { title: 'Avatar Demo' }
   }
 ];
 

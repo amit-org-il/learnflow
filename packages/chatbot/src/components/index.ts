@@ -15,4 +15,5 @@ export { default as AvatarContainer } from './AvatarContainer.vue';
 export { default as StreamingText } from './StreamingText.vue';
 export { default as VoiceRecorder } from './VoiceRecorder.vue';
 export { default as ViewToggleButton } from './ViewToggleButton.vue';
+export { default as BotSelector } from './BotSelector.vue';
 

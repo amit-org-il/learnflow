@@ -1,8 +1,8 @@
 # Learnflow Avatar Integration - Status
 
-**Last Updated:** 2025-11-30 16:00
-**Current Phase:** ✅ VERIFICATION COMPLETE
-**Status:** All tests passed - PRODUCTION READY
+**Last Updated:** 2025-11-30 18:30
+**Current Phase:** ✅ COMPLETE - Bot Selector
+**Status:** Bot Selector dropdown feature implemented and tested
 
 ---
 
@@ -17,6 +17,7 @@
 | 5. Implementation | ✅ Complete | All 9 phases implemented |
 | 6. E2E Testing | ✅ Complete | All tests passed 2025-11-30 |
 | 7. Deployment | ✅ Ready | Production ready |
+| 8. Bot Selector | ✅ Complete | Bot selection dropdown implemented |
 
 ---
 
@@ -33,6 +34,73 @@
 | 7 | Streaming Text | ✅ 100% | StreamingText.vue with RTL support |
 | 8 | Avatar Caching | ✅ 100% | IndexedDB with 30-day TTL |
 | 9 | Polish & Testing | ✅ 100% | ViewToggleButton.vue, healthService.ts |
+| 10 | **Bot Selector** | ✅ 100% | Dropdown to switch between bots |
+
+---
+
+## 🆕 NEW FEATURE: Bot Selector Dropdown
+
+### Feature Description
+Add a **Bot Selector dropdown** positioned **above the Configuration section** to allow users to switch between available bots.
+
+> **⚠️ DEMO ONLY - NOT FOR PRODUCTION**
+>
+> This Bot Selector dropdown is **ONLY for demo/testing purposes**.
+> In production (Learnflow LMS), the `bot_id` comes from the LMS context - users don't select bots manually.
+>
+> **For Alex @ 200apps/Learnflow:**
+> - This dropdown will display a tooltip: *"Demo mode: In production, bot is selected automatically from LMS context"*
+> - The dropdown has a yellow "⚠️ Demo Only" badge
+> - In production deployment, this component should be hidden or removed
+
+### UI Position
+```
+┌─────────────────────────────────────────┐
+│  [🤖 Select Bot ▼]                      │  ← NEW: Above Configuration
+│  ┌─────────────────────────────────────┐│
+│  │ • default (English)                 ││
+│  │ • male-en (English Male)            ││
+│  │ • female-en (English Female)        ││
+│  │ • fastie (Fast 2x)                  ││
+│  │ • male-he (Hebrew Male)             ││
+│  │ • female-he (Hebrew Female)         ││
+│  │ • gemini-live (Gemini Voice)        ││
+│  │ • gemini-live-female (Gemini Female)││
+│  └─────────────────────────────────────┘│
+│                                         │
+│  [⚙️ Configuration]                     │  ← Existing section
+└─────────────────────────────────────────┘
+```
+
+### Implementation Tasks
+| Task | File | Status |
+|------|------|--------|
+| Create `useBots.ts` composable | `src/composables/useBots.ts` | ✅ Done |
+| Create `BotSelector.vue` component | `src/components/BotSelector.vue` | ✅ Done |
+| Add BotSummary type export | `src/composables/useBots.ts` | ✅ Done |
+| Export from vue.ts barrel | `src/vue.ts` | ✅ Done |
+| Create AvatarDemo.vue playground | `playground/src/views/AvatarDemo.vue` | ✅ Done |
+| Handle bot change (reconnect socket) | Integration | ✅ Done |
+| E2E Test with Chrome DevTools | Test Suite 11 | ✅ Done |
+
+### Bot Change Flow
+1. User selects new bot from dropdown
+2. Close existing Socket.IO connection
+3. Create new session: `POST /chats { botId: newBotId }`
+4. Reconnect Socket.IO with new `chatId`
+5. Reload avatar with new bot's config
+
+### Available Bots (from `/bots` endpoint)
+| Bot ID | Name | Provider | Language |
+|--------|------|----------|----------|
+| `default` | Default Assistant | Azure | English |
+| `male-en` | English Male Assistant | Azure | English |
+| `female-en` | English Female Assistant | Azure | English |
+| `fastie` | Fast Speaker (2x) | Azure | English |
+| `male-he` | Hebrew Male Assistant | Azure | Hebrew |
+| `female-he` | Hebrew Female Assistant | Azure | Hebrew |
+| `gemini-live` | Gemini Live (Male) | Gemini | English |
+| `gemini-live-female` | Gemini Live (Female) | Gemini | English |
 
 ---
 
@@ -54,10 +122,18 @@
 
 | Test Suite | Description | Status | Last Run |
 |------------|-------------|--------|----------|
-| Suite 1 | Page Load & Initial State | ✅ Pass | 2025-11-30 (Frontend serves correctly) |
-| Suite 2-10 | Avatar/Socket/Voice/Controls | ⬜ Manual | Requires Chrome DevTools MCP |
+| Suite 1 | Page Load & Initial State | ✅ Pass | 2025-11-30 |
+| Suite 2-10 | Avatar/Socket/Voice/Controls | ⬜ Pending | - |
+| Suite 11 | **Bot Selector Dropdown** | ✅ Pass | 2025-11-30 |
 
-**Note:** Chrome DevTools MCP not available in this session. Manual UI testing recommended.
+**Chrome DevTools MCP is NOW AVAILABLE!**
+```bash
+# Already installed with:
+claude mcp add chrome-devtools npx chrome-devtools-mcp@latest
+
+# Start Chrome with debugging:
+"C:\Program Files\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222
+```
 
 ### Build & Type Checks
 
