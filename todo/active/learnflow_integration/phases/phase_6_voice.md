@@ -8,10 +8,10 @@
 
 ## Tasks
 
-- [ ] **6.1** Create AudioWorklet processor file (30 minutes)
-- [ ] **6.2** Create `AudioRecorder.ts` class (2 hours)
-- [ ] **6.3** Create `useVoiceRecording.ts` composable (1.5 hours)
-- [ ] **6.4** Create `VoiceRecorder.vue` component (1 hour)
+- [x] **6.1** Create AudioWorklet processor file (30 minutes)
+- [x] **6.2** Create `AudioRecorder.ts` class (2 hours)
+- [x] **6.3** Create `useVoiceRecording.ts` composable (1.5 hours)
+- [x] **6.4** Create `VoiceRecorder.vue` component (1 hour)
 
 ---
 

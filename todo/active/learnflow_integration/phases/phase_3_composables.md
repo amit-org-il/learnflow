@@ -7,15 +7,15 @@
 
 ## Tasks
 
-- [ ] **3.1** Create `audio-utils.ts` - Full audio context management (1 hour)
-- [ ] **3.2** Create `audio-unlock.ts` - Simple unlock wrapper (15 min)
-- [ ] **3.2.5** Copy `audioworklet-registry.ts` - AudioWorklet utility (5 min - copy)
-- [ ] **3.3** Create `smart-mouth-analyzer.ts` worklet (30 min - copy)
-- [ ] **3.4** Create `GeminiAudioHandler.ts` (30 min - copy)
-- [ ] **3.5** Create `useAvatarSocket.ts` - Socket.IO composable (3-4 hours)
-- [ ] **3.6** Create `useAvatar.ts` - TalkingHead wrapper (2 hours)
-- [ ] **3.7** Create `useAzureTTS.ts` - Azure Speech SDK (2.5 hours)
-- [ ] **3.8** Create `useGeminiLipsync.ts` - Gemini audio lip-sync (2 hours)
+- [x] **3.1** Create `audio-utils.ts` - Full audio context management (1 hour)
+- [x] **3.2** Create `audio-unlock.ts` - Simple unlock wrapper (15 min)
+- [x] **3.2.5** Copy `audioworklet-registry.ts` - AudioWorklet utility (5 min - copy)
+- [x] **3.3** Create `smart-mouth-analyzer.ts` worklet (30 min - copy)
+- [x] **3.4** Create `GeminiAudioHandler.ts` (30 min - copy)
+- [x] **3.5** Create `useAvatarSocket.ts` - Socket.IO composable (3-4 hours)
+- [x] **3.6** Create `useAvatar.ts` - TalkingHead wrapper (2 hours)
+- [x] **3.7** Create `useAzureTTS.ts` - Azure Speech SDK (2.5 hours)
+- [x] **3.8** Create `useGeminiLipsync.ts` - Gemini audio lip-sync (2 hours)
 
 > **IMPORTANT:** Tasks must be completed in order - later tasks depend on earlier ones.
 

@@ -8,7 +8,7 @@
 
 ## Tasks
 
-- [ ] **7.1** Create `StreamingText.vue` component (1.5 hours)
+- [x] **7.1** Create `StreamingText.vue` component (1.5 hours)
 
 ---
 

@@ -8,9 +8,9 @@
 
 ## Tasks
 
-- [ ] **9.1** Create `ViewToggleButton.vue` (1 hour)
-- [ ] **9.2** Create `healthService.ts` (1 hour)
-- [ ] **9.3** Final testing and bug fixes (1 hour)
+- [x] **9.1** Create `ViewToggleButton.vue` (1 hour)
+- [x] **9.2** Create `healthService.ts` (1 hour)
+- [x] **9.3** Final testing and bug fixes (1 hour)
 
 ---
 

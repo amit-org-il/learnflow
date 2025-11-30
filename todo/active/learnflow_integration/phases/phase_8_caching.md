@@ -18,8 +18,8 @@
 
 ## Tasks
 
-- [ ] **8.1** Create `avatarCacheService.ts` (2 hours)
-- [ ] **8.2** Create `useAvatarPreloader.ts` composable (1 hour)
+- [x] **8.1** Create `avatarCacheService.ts` (2 hours)
+- [x] **8.2** Create `useAvatarPreloader.ts` composable (1 hour)
 
 ---
 

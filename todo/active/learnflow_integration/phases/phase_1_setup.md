@@ -7,12 +7,12 @@
 
 ## Tasks
 
-- [ ] **1.0** Verify prerequisites
-- [ ] **1.1** Install NPM packages
-- [ ] **1.2** Copy TalkingHead.js files
-- [ ] **1.2.5** Create environment variables (.env file)
-- [ ] **1.3** Configure Vite for .mjs files
-- [ ] **1.4** Verify setup
+- [x] **1.0** Verify prerequisites
+- [x] **1.1** Install NPM packages
+- [x] **1.2** Copy TalkingHead.js files
+- [x] **1.2.5** Create environment variables (.env file)
+- [x] **1.3** Configure Vite for .mjs files
+- [x] **1.4** Verify setup
 
 ---
 

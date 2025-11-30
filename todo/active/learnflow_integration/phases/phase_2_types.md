@@ -7,11 +7,11 @@
 
 ## Tasks
 
-- [ ] **2.1** Create `avatar-websocket.ts` (Socket.IO message types)
-- [ ] **2.2** Create `avatar.ts` (state types)
-- [ ] **2.3** Create `talking-head.d.ts` (TalkingHead type definitions)
-- [ ] **2.4** Create `index.ts` (barrel export)
-- [ ] **2.5** Verify types compile
+- [x] **2.1** Create `avatar-websocket.ts` (Socket.IO message types)
+- [x] **2.2** Create `avatar.ts` (state types)
+- [x] **2.3** Create `talking-head.d.ts` (TalkingHead type definitions)
+- [x] **2.4** Create `index.ts` (barrel export)
+- [x] **2.5** Verify types compile
 
 ---
 
