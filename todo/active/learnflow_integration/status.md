@@ -1,6 +1,6 @@
 # Learnflow Avatar Integration - Status
 
-**Last Updated:** 2025-12-01 02:30
+**Last Updated:** 2025-12-01 03:00
 **Current Phase:** ✅ COMPLETE - Live Voice Mode
 **Status:** Live Voice button for Gemini Live bots implemented and tested
 
@@ -89,12 +89,13 @@
 ### UI Position (Chat Input Area)
 ```
 ┌─────────────────────────────────────┐
-│  [Text Input............]  [🎙️][🎤]│
-│                             │    │  │
-│                      Live Voice  Mic│
-│                    (Gemini only)    │
+│  [🎙️] [Text Input............] [🎤]│
+│   │                             │   │
+│   Live Voice               Mic/Stop │
+│   (Gemini only)                     │
 └─────────────────────────────────────┘
 ```
+*Live Voice on far left (external side) - matches ChatGPT/Gemini apps*
 
 ### Components Created/Modified
 | Component | Change |
