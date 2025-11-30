@@ -1,6 +1,16 @@
 <template>
   <div class="chat-input" :dir="rtl ? 'rtl' : 'ltr'">
     <div class="chat-input__form">
+      <!-- Live Voice Button (Gemini Live only - far left, external side) -->
+      <LiveVoiceButton
+        v-if="isGeminiLive"
+        :is-recording="isLiveVoiceRecording"
+        :is-initializing="isLiveVoiceInitializing"
+        :volume-level="liveVoiceVolume"
+        :disabled="disabled"
+        @toggle="handleLiveVoiceToggle"
+      />
+
       <div class="chat-input__input-wrapper">
         <input
           v-model="inputValue"
@@ -11,16 +21,6 @@
           @keyup.enter="handleSubmit"
         />
       </div>
-
-      <!-- Live Voice Button (Gemini Live only - left of mic) -->
-      <LiveVoiceButton
-        v-if="isGeminiLive"
-        :is-recording="isLiveVoiceRecording"
-        :is-initializing="isLiveVoiceInitializing"
-        :volume-level="liveVoiceVolume"
-        :disabled="disabled"
-        @toggle="handleLiveVoiceToggle"
-      />
 
       <!-- Stop Button (when avatar is speaking) -->
       <button
