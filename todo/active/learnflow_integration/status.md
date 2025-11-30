@@ -1,8 +1,8 @@
 # Learnflow Avatar Integration - Status
 
-**Last Updated:** 2025-11-30 18:30
-**Current Phase:** ✅ COMPLETE - Bot Selector
-**Status:** Bot Selector dropdown feature implemented and tested
+**Last Updated:** 2025-12-01 01:00
+**Current Phase:** ✅ COMPLETE - Avatar Controls
+**Status:** Mute button, speed control, and UI improvements complete
 
 ---
 
@@ -18,6 +18,7 @@
 | 6. E2E Testing | ✅ Complete | All tests passed 2025-11-30 |
 | 7. Deployment | ✅ Ready | Production ready |
 | 8. Bot Selector | ✅ Complete | Bot selection dropdown implemented |
+| 9. Avatar Controls | ✅ Complete | Mute, Speed, View controls with improved UI |
 
 ---
 
@@ -35,6 +36,78 @@
 | 8 | Avatar Caching | ✅ 100% | IndexedDB with 30-day TTL |
 | 9 | Polish & Testing | ✅ 100% | ViewToggleButton.vue, healthService.ts |
 | 10 | **Bot Selector** | ✅ 100% | Dropdown to switch between bots |
+| 11 | **Avatar Controls** | ✅ 100% | Mute, Speed, View toggle - all working |
+
+---
+
+## 🆕 Phase 11: Avatar Controls (COMPLETE)
+
+### Features Implemented
+| Feature | Component | Status |
+|---------|-----------|--------|
+| **Mute Button** | `MuteButton.vue` | ✅ Complete |
+| **Speed Control** | `SpeedControl.vue` | ✅ Azure bots only |
+| **View Toggle** | `ViewToggleButton.vue` | ✅ Head/Upper views |
+| **Stop Button** | `ChatInput.vue` | ✅ Stops audio, not avatar |
+
+### UI Layout
+```
+┌─────────────────────────────────────┐
+│                                     │
+│           [Avatar]                  │
+│                                     │
+│  [🔇] [1.25x]              [🙂]    │
+│   └─ Mute   └─ Speed        └─ View │
+│      (all)    (Azure only)   (all)  │
+└─────────────────────────────────────┘
+```
+
+### Mute Functionality
+- When muted: `textOnly: true` sent to backend
+- Text response appears in chat bubble
+- No audio playback, avatar stays idle
+- Works with both Azure and Gemini Live
+
+---
+
+## 📋 PLANNED: Live Voice Mode (Gemini Live Only)
+
+### Feature Description
+Add a **"Live Voice" button** that enables continuous voice conversation with Gemini Live bots. This is different from push-to-talk - it's a freeform conversation mode with VAD (Voice Activity Detection).
+
+### Requirements
+| Feature | Description | Priority |
+|---------|-------------|----------|
+| Live Voice Button | Microphone icon, only for Gemini Live bots | P0 |
+| VAD Mode | Continuous voice streaming with auto-detection | P0 |
+| Interrupt AI | User can speak while AI is talking | P0 |
+| Visual Indicator | Different icon when live mode active | P1 |
+| Volume Visualization | Show audio level when recording | P2 |
+
+### UI Position
+```
+┌─────────────────────────────────────┐
+│                                     │
+│           [Avatar]                  │
+│                                     │
+│  [🔇] [🎙️]                  [🙂]   │  ← [🎙️] = Live Voice (Gemini only)
+│   └─ Mute └─ Live Voice      └─ View│
+└─────────────────────────────────────┘
+```
+
+### Existing Components (need integration)
+- `VoiceRecorder.vue` - Component exists, not integrated
+- `useVoiceRecording.ts` - Hook exists, not wired up
+- `sendUserVoice()` - Method exists in useAvatarSocket
+
+### Implementation Tasks
+| Task | Status |
+|------|--------|
+| Add Live Voice button to FloatingChatbot | ⬜ Pending |
+| Wire VoiceRecorder to AvatarContainer | ⬜ Pending |
+| Show only for Gemini Live provider | ⬜ Pending |
+| Add interrupt functionality | ⬜ Pending |
+| Test with Gemini Live backend | ⬜ Pending |
 
 ---
 
@@ -126,14 +199,18 @@ Add a **Bot Selector dropdown** positioned **above the Configuration section** t
 | Suite 2-10 | Avatar/Socket/Voice/Controls | ⬜ Pending | - |
 | Suite 11 | **Bot Selector Dropdown** | ✅ Pass | 2025-11-30 |
 
-**Chrome DevTools MCP is NOW AVAILABLE!**
+**Chrome DevTools MCP Setup:**
 ```bash
-# Already installed with:
+# Installed with:
 claude mcp add chrome-devtools npx chrome-devtools-mcp@latest
+
+# IMPORTANT: Restart Claude Code after adding MCP for tools to load!
 
 # Start Chrome with debugging:
 "C:\Program Files\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222
 ```
+
+**Note:** MCP tools require Claude Code restart to become available.
 
 ### Build & Type Checks
 
