@@ -7,8 +7,8 @@
 
 ## Tasks
 
-- [ ] **4.1** Create `AvatarContainer.vue` (2 hours)
-- [ ] **4.2** Integrate into `FloatingChatbot.vue` (1 hour)
+- [x] **4.1** Create `AvatarContainer.vue` (2 hours)
+- [x] **4.2** Integrate into `FloatingChatbot.vue` (1 hour)
 
 ---
 

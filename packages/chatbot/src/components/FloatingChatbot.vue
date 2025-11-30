@@ -36,7 +36,8 @@
       :class="{
         'floating-chatbot__window--sidebar': currentLayout === 'sidebar',
         'floating-chatbot__window--floating': currentLayout === 'floating',
-        'floating-chatbot__window--panel': currentLayout === 'panel'
+        'floating-chatbot__window--panel': currentLayout === 'panel',
+        'has-avatar': isAvatarEnabled
       }"
       :dir="rtl ? 'rtl' : 'ltr'"
     >
@@ -96,8 +97,26 @@
       </div>
 
       <div class="floating-chatbot__content">
-        <!-- Video/Audio player area (if supported) -->
-        <div v-if="botIdleVideo && showVideo" class="floating-chatbot__media">
+        <!-- Avatar (if enabled) -->
+        <div v-if="isAvatarEnabled" class="floating-chatbot__media floating-chatbot__media--avatar">
+          <AvatarContainer
+            :backend-url="backendUrl"
+            :chat-id="chatId"
+            :model-url="avatarConfig.url"
+            :gender="avatarConfig.gender"
+            :provider="avatarConfig.provider"
+            :voice-config="avatarConfig.voiceConfig"
+            :background="avatarConfig.background"
+            @ready="handleAvatarReady"
+            @speaking-start="handleAvatarSpeakingStart"
+            @speaking-end="handleAvatarSpeakingEnd"
+            @error="handleAvatarError"
+            @fallback="handleAvatarFallback"
+          />
+        </div>
+
+        <!-- Video/Audio player area (fallback or non-avatar mode) -->
+        <div v-else-if="botIdleVideo && showVideo" class="floating-chatbot__media">
           <video
             ref="idleVideoRef"
             :poster="botImage"
@@ -109,7 +128,7 @@
             loop
           />
         </div>
-        
+
         <ChatContainer
           :messages="messages"
           :is-loading="isLoading"
@@ -129,7 +148,10 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import ChatContainer from './ChatContainer.vue';
+import AvatarContainer from './AvatarContainer.vue';
+import { unlockAudio } from '../lib/audio/audio-unlock';
 import type { ChatMessage, BotInfo } from '../types.js';
+import type { VoiceConfig } from '../types/index';
 
 interface Props {
   messages: ChatMessage[];
@@ -142,6 +164,8 @@ interface Props {
   layout?: 'floating' | 'sidebar' | 'panel';
   modelValue?: boolean; // v-model for open state
   supportsMarkdown?: boolean;
+  /** Current chat session ID (for avatar Socket.IO) */
+  currentChatId?: string;
 }
 
 interface Emits {
@@ -162,6 +186,7 @@ const props = withDefaults(defineProps<Props>(), {
   layout: 'floating',
   modelValue: false,
   supportsMarkdown: true,
+  currentChatId: '',
 });
 
 const emit = defineEmits<Emits>();
@@ -193,8 +218,52 @@ const rtl = computed(() => {
   return internalRTL.value;
 });
 
+// Avatar state
+const avatarFallbackMode = ref(false);
+
+// Check if avatar is enabled for this bot
+const isAvatarEnabled = computed(() => {
+  return props.botInfo?.supportedResponseTypes?.includes('avatar') &&
+         !avatarFallbackMode.value;
+});
+
+// Avatar configuration from bot info
+const avatarConfig = computed(() => {
+  const voiceConfig: VoiceConfig = {
+    voice: (props.botInfo as any)?.tts?.voice_id || 'en-US-JennyNeural',
+    locale: (props.botInfo as any)?.tts?.locale || 'en-US',
+    gender: (props.botInfo as any)?.avatar?.gender || 'female',
+    speakingRate: (props.botInfo as any)?.tts?.speaking_rate || 1.0,
+  };
+
+  return {
+    url: (props.botInfo as any)?.avatar?.glb_url || '',
+    gender: ((props.botInfo as any)?.avatar?.gender || 'female') as 'male' | 'female',
+    provider: ((props.botInfo as any)?.tts?.provider || 'azure') as 'azure' | 'gemini-live',
+    voiceConfig,
+    background: (props.botInfo as any)?.avatar?.background ||
+                'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+  };
+});
+
+// Get backend URL from environment or default
+const backendUrl = computed(() => {
+  if (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_BACKEND_URL) {
+    return (import.meta as any).env.VITE_BACKEND_URL;
+  }
+  const isDev = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+  return isDev ? 'http://localhost:8001' : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8001');
+});
+
+// Get current chat ID
+const chatId = computed(() => {
+  return props.currentChatId || '';
+});
+
 function toggleChat() {
   isOpen.value = !isOpen.value;
+  // Unlock audio on first user interaction
+  unlockAudio();
   emit('toggle');
 }
 
@@ -211,6 +280,32 @@ function toggleRTL() {
 
 function handleSubmit(message: string) {
   emit('submit', message);
+}
+
+// Avatar event handlers
+function handleAvatarReady() {
+  console.log('[FloatingChatbot] Avatar ready');
+}
+
+function handleAvatarSpeakingStart() {
+  // Optionally disable text input while speaking
+  console.log('[FloatingChatbot] Avatar speaking started');
+}
+
+function handleAvatarSpeakingEnd() {
+  // Re-enable text input
+  console.log('[FloatingChatbot] Avatar speaking ended');
+}
+
+function handleAvatarError(error: string) {
+  console.error('[FloatingChatbot] Avatar error:', error);
+  // Could show error toast/notification here
+}
+
+function handleAvatarFallback() {
+  avatarFallbackMode.value = true;
+  // Continue with text + audio, no avatar
+  console.log('[FloatingChatbot] Fallback mode activated (no avatar)');
 }
 
 // Watch for bot info changes (welcome message is handled by parent)
@@ -417,6 +512,86 @@ watch(() => props.botInfo, (newBotInfo) => {
 .fade-leave-from {
   opacity: 1;
   transform: scale(1) translateY(0);
+}
+
+/* ============================================
+   AVATAR CONTAINER - RESPONSIVE SOLUTION
+   ============================================ */
+
+/* Avatar-specific media container */
+.floating-chatbot__media--avatar {
+  width: 100%;
+  /* Responsive height: min 200px, ideal 35% of viewport, max 400px */
+  height: clamp(12.5rem, 35vh, 25rem);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Increase window size when avatar is enabled */
+.floating-chatbot__window--floating.has-avatar {
+  width: 25rem;         /* 400px - wider for avatar */
+  max-height: 56rem;    /* 896px - increased to fit avatar + messages */
+  height: calc(100vh - 4rem);  /* Use more screen space */
+}
+
+/* Sidebar mode with avatar */
+.floating-chatbot__window--sidebar.has-avatar {
+  width: 25rem;         /* 400px */
+}
+
+/* Panel mode - avatar can be larger */
+.floating-chatbot__window--panel.has-avatar .floating-chatbot__media--avatar {
+  height: clamp(15rem, 40vh, 30rem);  /* Larger in panel mode */
+}
+
+/* ============================================
+   RESPONSIVE BREAKPOINTS
+   ============================================ */
+
+/* Large desktop (height > 900px) - full size avatar */
+@media (min-height: 900px) {
+  .floating-chatbot__media--avatar {
+    height: 25rem;  /* 400px */
+  }
+}
+
+/* Standard desktop/tablet (600-900px height) */
+@media (max-height: 900px) {
+  .floating-chatbot__media--avatar {
+    height: clamp(12.5rem, 35vh, 20rem);  /* 200-320px */
+  }
+}
+
+/* Small screens / mobile landscape (< 600px height) */
+@media (max-height: 600px) {
+  .floating-chatbot__media--avatar {
+    height: 10rem;  /* 160px - compact but visible */
+  }
+
+  .floating-chatbot__window--floating.has-avatar {
+    max-height: calc(100vh - 2rem);
+    bottom: 1rem;
+  }
+}
+
+/* Very small screens (< 500px height) */
+@media (max-height: 500px) {
+  .floating-chatbot__media--avatar {
+    height: 8rem;  /* 128px - minimal */
+  }
+}
+
+/* Mobile portrait - full width */
+@media (max-width: 480px) {
+  .floating-chatbot__window--floating.has-avatar {
+    width: calc(100vw - 1rem);
+    right: 0.5rem;
+    left: 0.5rem;
+  }
 }
 </style>
 
