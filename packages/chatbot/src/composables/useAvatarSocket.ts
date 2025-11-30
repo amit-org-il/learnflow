@@ -4,6 +4,7 @@ import type {
   SessionConfig,
   SpeakMessage,
   AvatarControlMessage,
+  AvatarControlParams,
 } from '../types/index';
 
 // ========================================
@@ -45,7 +46,7 @@ export interface UseAvatarSocketOptions {
   // Callbacks
   onSessionStart?: (sessionId: string, config: SessionConfig) => void;
   onSpeak?: (message: SpeakMessage) => void;
-  onAvatarControl?: (command: string, params: Record<string, unknown>) => void;
+  onAvatarControl?: (command: string, params: AvatarControlParams) => void;
   onConfigUpdate?: (config: SessionConfig) => void;
   onError?: (error: string) => void;
   onConnect?: () => void;
@@ -326,7 +327,7 @@ export function useAvatarSocket(options: UseAvatarSocketOptions): UseAvatarSocke
       });
 
       socket.on('avatar_control', (data: { command: string; params: Record<string, unknown> }) => {
-        onAvatarControl?.(data.command, data.params);
+        onAvatarControl?.(data.command, data.params as AvatarControlParams);
       });
 
       socket.on('config_update', (data: { config: SessionConfig }) => {
