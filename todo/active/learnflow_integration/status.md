@@ -1,8 +1,8 @@
 # Learnflow Avatar Integration - Status
 
-**Last Updated:** 2025-12-01 03:00
-**Current Phase:** ✅ COMPLETE - Live Voice Mode
-**Status:** Live Voice button for Gemini Live bots implemented and tested
+**Last Updated:** 2025-12-01 03:30
+**Current Phase:** ✅ COMPLETE - Live Voice Mode + Cleanup
+**Status:** Live Voice button complete, removed redundant /avatar route
 
 ---
 
@@ -373,3 +373,21 @@ The LMS Bot Generator backend (used by Learnflow) will be updated to support a n
 const hasAvatar = bot.supported_features?.includes('AVATAR');
 const avatarConfig = bot.avatar_config;  // GLB URL, gender, voice, etc.
 ```
+
+---
+
+## 🧹 Cleanup: Removed /avatar Route (2025-12-01)
+
+### Reason
+The `/avatar` route (`AvatarDemo.vue`) was redundant because `/chatbot` now has full avatar functionality integrated into `FloatingChatbot.vue`.
+
+### Changes Made
+| Item | Action |
+|------|--------|
+| `playground/src/router/index.ts` | Removed `/avatar` route and `AvatarDemo` import |
+| `playground/src/views/AvatarDemo.vue` | **DELETED** - 594 lines removed |
+
+### Result
+- Cleaner codebase - one less redundant page
+- `/chatbot` is the single source of truth for avatar + chatbot testing
+- All avatar features accessible via `/chatbot` route
