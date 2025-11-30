@@ -5,6 +5,9 @@
     :class="className"
     :style="{ maxHeight: `${maxHeight}px` }"
     :dir="dir"
+    role="log"
+    aria-live="polite"
+    aria-label="Streaming response text"
   >
     <!-- Text Content -->
     <div ref="textRef" class="streaming-text__content">
@@ -17,6 +20,8 @@
       v-if="showClearButton && !isStreaming && displayText"
       class="streaming-text__clear"
       @click="handleClear"
+      aria-label="Clear streaming text"
+      type="button"
     >
       Clear
     </button>

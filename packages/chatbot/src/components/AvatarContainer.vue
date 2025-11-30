@@ -1,29 +1,44 @@
 <template>
   <div class="avatar-container" :style="{ background: background }">
     <!-- Loading State -->
-    <div v-if="isLoading" class="avatar-loading">
-      <div class="avatar-loading__progress">
+    <div v-if="isLoading" class="avatar-loading" role="status" aria-live="polite" aria-label="Loading avatar">
+      <div class="avatar-loading__progress" aria-hidden="true">
         {{ Math.round(loadingProgress) }}%
       </div>
-      <div class="avatar-loading__bar">
+      <div class="avatar-loading__bar" role="progressbar" :aria-valuenow="Math.round(loadingProgress)" aria-valuemin="0" aria-valuemax="100">
         <div class="avatar-loading__fill" :style="{ width: `${loadingProgress}%` }" />
       </div>
+      <span class="sr-only">Loading avatar: {{ Math.round(loadingProgress) }} percent complete</span>
     </div>
 
     <!-- Avatar Canvas -->
     <div ref="avatarRef" class="avatar-canvas" v-show="!isLoading && !hasError" />
 
     <!-- Error State with Retry -->
-    <div v-if="hasError" class="avatar-error">
+    <div v-if="hasError" class="avatar-error" role="alert" aria-live="assertive">
       <p>{{ errorMessage }}</p>
-      <button @click="retry">Retry</button>
+      <button @click="retry" type="button" aria-label="Retry loading avatar">Retry</button>
     </div>
+
+    <!-- Streaming Text Overlay (for Gemini Live) -->
+    <StreamingText
+      v-if="streamingText.hasContent.value && provider === 'gemini-live'"
+      :text-chunks="streamingText.textChunks.value"
+      :is-streaming="streamingText.isStreaming.value"
+      :dir="streamingText.textDirection.value"
+      class-name="avatar-streaming-text"
+      :max-height="120"
+      :show-clear-button="false"
+      @clear="streamingText.clearText"
+    />
 
     <!-- Stop Button (visible when speaking) -->
     <button
       v-if="isSpeaking"
       class="avatar-stop-button"
       @click="handleStop"
+      type="button"
+      aria-label="Stop avatar speaking"
     >
       Stop
     </button>
@@ -36,7 +51,9 @@ import { useAvatar } from '../composables/useAvatar';
 import { useAvatarSocket } from '../composables/useAvatarSocket';
 import { useGeminiLipsync } from '../composables/useGeminiLipsync';
 import { useAzureTTS } from '../composables/useAzureTTS';
+import { useStreamingText } from '../composables/useStreamingText';
 import { unlockAudio } from '../lib/audio/audio-unlock';
+import StreamingText from './StreamingText.vue';
 import type { SpeakMessage, AvatarControlParams, VoiceConfig, AzureSpeakMessage, GeminiSpeakMessage } from '../types/index';
 
 interface Props {
@@ -112,11 +129,22 @@ const azureTTS = props.provider === 'azure'
     })
   : null;
 
+// Streaming text for Gemini Live responses
+const streamingText = useStreamingText({
+  defaultDir: 'auto',
+  onClear: () => console.log('[AvatarContainer] Streaming text cleared'),
+});
+
 const isLoading = computed(() => avatar.isLoading.value);
 const loadingProgress = computed(() => avatar.loadingProgress.value);
 const isSpeaking = computed(() => avatarSocket.isSpeaking.value);
 
 async function handleSpeak(message: SpeakMessage) {
+  // Always process streaming text for Gemini Live messages (even in fallback mode)
+  if (message.provider === 'gemini-live') {
+    streamingText.handleSpeakMessage(message);
+  }
+
   if (fallbackMode.value) {
     // In fallback mode, just play audio without avatar
     return;
@@ -203,6 +231,7 @@ function handleStop() {
     azureTTS.stop();
   }
   avatarSocket.interruptSpeaking();
+  streamingText.clearText();
   emit('speaking-end');
 }
 
@@ -360,5 +389,28 @@ onUnmounted(() => {
   border-radius: 4px;
   cursor: pointer;
   font-weight: bold;
+}
+
+/* Streaming text overlay positioned at bottom */
+:deep(.avatar-streaming-text) {
+  position: absolute;
+  bottom: 3.5rem;
+  left: 0.5rem;
+  right: 0.5rem;
+  max-width: calc(100% - 1rem);
+  z-index: 10;
+}
+
+/* Screen reader only - visually hidden but accessible */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 </style>
