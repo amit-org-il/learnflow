@@ -23,12 +23,12 @@ Integrating TalkingHead 3D avatar with Azure TTS and Gemini Live support into th
 | 3 | Vue Composables | ✅ Complete | 100% |
 | 4 | Vue Components | ✅ Complete | 100% |
 | 5 | API Integration | ✅ Complete | 100% |
-| 6 | Voice Input | ⬜ Not Started | 0% |
+| 6 | Voice Input | ✅ Complete | 100% |
 | 7 | Streaming Text | ⬜ Not Started | 0% |
 | 8 | Avatar Caching | ⬜ Not Started | 0% |
 | 9 | Polish & Testing | ⬜ Not Started | 0% |
 
-**Overall Progress:** 5/9 phases (56%)
+**Overall Progress:** 6/9 phases (67%)
 
 ---
 
@@ -67,10 +67,11 @@ These decisions are documented in `HANDOFF_DOCUMENT.md` - **DO NOT change them**
 3. ~~Phase 3: Vue Composables~~ ✅ Complete
 4. ~~Phase 4: Vue Components~~ ✅ Complete
 5. ~~Phase 5: API Integration~~ ✅ Complete
-6. **Next: Phase 6: Voice Input**
-7. Follow phase files in order (some can run in parallel)
-8. Commit after each phase
-9. Push to fork and create PR when ready
+6. ~~Phase 6: Voice Input~~ ✅ Complete
+7. **Next: Phase 7: Streaming Text**
+8. Follow phase files in order (some can run in parallel)
+9. Commit after each phase
+10. Push to fork and create PR when ready
 
 ---
 
@@ -98,6 +99,29 @@ git push -u origin feature/avatar-integration
 ---
 
 ## 📝 Session Log
+
+### 2025-11-30 - Phase 6 Complete
+**Phase 6: Voice Input** completed:
+- Created `public/worklets/audio-processor.js` - AudioWorklet for microphone capture with VAD
+- Created `src/lib/audio/AudioRecorder.ts` - AudioRecorder class with proper Base64 encoding
+- Created `src/composables/useVoiceRecording.ts` - Vue composable wrapping AudioRecorder
+- Created `src/components/VoiceRecorder.vue` - Record button with volume indicator
+- Copied worklet to playground for development testing
+- All builds pass successfully
+
+**Files Created:**
+- `packages/chatbot/public/worklets/audio-processor.js` (65 lines)
+- `packages/chatbot/src/lib/audio/AudioRecorder.ts` (255 lines)
+- `packages/chatbot/src/composables/useVoiceRecording.ts` (185 lines)
+- `packages/chatbot/src/components/VoiceRecorder.vue` (275 lines)
+- `playground/public/worklets/audio-processor.js` (copy)
+
+**Files Modified:**
+- `packages/chatbot/src/lib/audio/index.ts` (added AudioRecorder export)
+- `todo/active/phase_6_voice.md` (marked tasks complete)
+- `STATUS.md` (updated progress)
+
+**Next Session:** Start Phase 7 - Streaming Text
 
 ### 2025-11-30 - Phase 5 Complete
 **Phase 5: API Integration** completed:

@@ -32,3 +32,6 @@ export { GeminiAudioHandler, type GeminiAudioHandlerEvents } from './GeminiAudio
 
 // Worklets
 export { default as SmartMouthAnalyzer, type MouthShape } from './worklets/smart-mouth-analyzer';
+
+// Audio Recorder (for voice input)
+export { AudioRecorder, type AudioRecorderOptions, type AudioRecorderError } from './AudioRecorder';
