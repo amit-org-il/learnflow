@@ -1,8 +1,8 @@
 # Learnflow Avatar Integration - Status
 
-**Last Updated:** 2025-12-01 03:30
-**Current Phase:** ✅ COMPLETE - Live Voice Mode + Cleanup
-**Status:** Live Voice button complete, removed redundant /avatar route
+**Last Updated:** 2025-12-01 04:30
+**Current Phase:** ✅ COMPLETE - Live Voice Mode + Bug Fixes
+**Status:** Live Voice Vue warning fixed, debug logging added for SmartMouthAnalyzer
 
 ---
 
@@ -391,3 +391,48 @@ The `/avatar` route (`AvatarDemo.vue`) was redundant because `/chatbot` now has 
 - Cleaner codebase - one less redundant page
 - `/chatbot` is the single source of truth for avatar + chatbot testing
 - All avatar features accessible via `/chatbot` route
+
+---
+
+## 🐛 Bug Fixes (2025-12-01)
+
+### Fix 1: Live Voice Button Vue Warning (FIXED)
+
+**Problem:**
+```
+[Vue warn]: onUnmounted is called when there is no active component instance
+```
+The `useVoiceRecording` composable was being called lazily (on button click) rather than during component setup, causing the `onUnmounted` hook to fail.
+
+**Solution:**
+- Modified `useVoiceRecording.ts` to use `getCurrentInstance()` to check if in setup context
+- Only registers `onUnmounted` if there's an active component instance
+- Added `cleanup()` action for manual cleanup when initialized outside setup
+- Added `onUnmounted` cleanup in `FloatingChatbot.vue` for voice recording
+
+**Files Changed:**
+- `packages/chatbot/src/composables/useVoiceRecording.ts`
+- `packages/chatbot/src/components/FloatingChatbot.vue`
+
+**Commit:** `f2ef29f`
+
+### Issue 2: SmartMouthAnalyzer Race Condition (INVESTIGATING)
+
+**Problem:**
+Multiple AudioContexts created in parallel cause a race condition where some fail with:
+```
+InvalidStateError: AudioWorkletNode cannot be created: The node name 'smart-mouth-analyzer' is not defined
+```
+The worklet eventually registers successfully after a few attempts.
+
+**Status:** Debug logging added to trace the issue. Lower priority as it self-recovers.
+
+**Debug Logging Added:**
+- `audioworklet-registry.ts` - Logs worklet creation and blob URL
+- `GeminiAudioHandler.ts` - Logs addModule success/failure
+
+**Root Cause Analysis:**
+- Multiple AudioContexts created simultaneously for Gemini Live
+- Each tries to register the SmartMouthAnalyzer worklet
+- Race condition causes some to fail before blob URL is fully loaded
+- Eventually succeeds, audio works after initial failures
