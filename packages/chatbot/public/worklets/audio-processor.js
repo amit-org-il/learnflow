@@ -47,13 +47,11 @@ class AudioProcessor extends AudioWorkletProcessor {
       return true; // Keep processor alive
     }
 
-    // Convert Float32 to PCM16
+    // Convert Float32 to PCM16 (symmetric scaling like React implementation)
     const pcm16 = new Int16Array(inputData.length);
     for (let i = 0; i < inputData.length; i++) {
-      // Clamp to [-1, 1] range
-      const s = Math.max(-1, Math.min(1, inputData[i]));
-      // Convert to 16-bit integer
-      pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+      // Symmetric conversion: multiply by 32768 (matches React)
+      pcm16[i] = inputData[i] * 32768;
     }
 
     // Send PCM16 data to main thread
