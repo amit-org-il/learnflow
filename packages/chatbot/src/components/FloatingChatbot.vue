@@ -302,7 +302,7 @@ function setupVoiceRecording() {
 
   liveVoiceRecording.value = useVoiceRecording({
     sampleRate: 16000,
-    vadThreshold: 0,  // Disabled (send all audio) - matches React implementation
+    vadThreshold: 0.05,  // Low threshold to filter silence but catch speech
     interruptOnStart: true,
     onAudioChunk: (base64, sampleRate, isFinal) => {
       // Send audio to avatar socket
