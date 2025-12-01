@@ -259,6 +259,8 @@ function handleLiveVoiceToggle() {
   gap: 0.5rem;
   width: 100%;
   height: 2.5rem;
+  /* Force LTR layout for buttons - text input still respects RTL */
+  direction: ltr;
 }
 
 .chat-input__input-wrapper {
@@ -277,6 +279,12 @@ function handleLiveVoiceToggle() {
   font-family: inherit;
   transition: all 0.2s;
   background-color: rgba(243, 244, 246, 0.5);
+}
+
+/* RTL text direction for input (inherits from parent .chat-input) */
+[dir="rtl"] .chat-input__input {
+  direction: rtl;
+  text-align: right;
 }
 
 .chat-input__input:focus {

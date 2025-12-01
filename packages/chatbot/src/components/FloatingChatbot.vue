@@ -302,12 +302,22 @@ function setupVoiceRecording() {
 
   liveVoiceRecording.value = useVoiceRecording({
     sampleRate: 16000,
-    vadThreshold: 0.15,
+    vadThreshold: 0,  // Disabled (send all audio) - matches React implementation
     interruptOnStart: true,
     onAudioChunk: (base64, sampleRate, isFinal) => {
       // Send audio to avatar socket
+      console.log('[FloatingChatbot] onAudioChunk:', {
+        hasData: !!base64,
+        length: base64?.length || 0,
+        sampleRate,
+        isFinal,
+        hasAvatarRef: !!avatarContainerRef.value,
+        hasSendUserVoice: !!avatarContainerRef.value?.sendUserVoice
+      });
       if (avatarContainerRef.value?.sendUserVoice) {
         avatarContainerRef.value.sendUserVoice(base64, sampleRate, isFinal);
+      } else {
+        console.warn('[FloatingChatbot] Cannot send audio: sendUserVoice not available');
       }
     },
     onInterruptSpeech: () => {
