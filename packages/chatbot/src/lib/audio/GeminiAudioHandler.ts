@@ -236,9 +236,19 @@ export class GeminiAudioHandler {
 
       // Set up SmartMouthAnalyzer worklet FIRST (for lip-sync analysis)
       const workletName = "smart-mouth-analyzer";
-      const workletSrc = createWorkletFromSrc(workletName, SmartMouthAnalyzer);
+      console.log('[GeminiAudioHandler] SmartMouthAnalyzer source type:', typeof SmartMouthAnalyzer);
+      console.log('[GeminiAudioHandler] SmartMouthAnalyzer first 200 chars:', SmartMouthAnalyzer.substring(0, 200));
 
-      await this.audioCtx.audioWorklet.addModule(workletSrc);
+      const workletSrc = createWorkletFromSrc(workletName, SmartMouthAnalyzer);
+      console.log('[GeminiAudioHandler] Created worklet blob URL:', workletSrc);
+
+      try {
+        await this.audioCtx.audioWorklet.addModule(workletSrc);
+        console.log('[GeminiAudioHandler] ✅ addModule succeeded for:', workletName);
+      } catch (addModuleError) {
+        console.error('[GeminiAudioHandler] ❌ addModule FAILED:', addModuleError);
+        throw addModuleError;
+      }
 
       // Create AudioWorkletNode with DEFAULT options (matches working reference)
       // The worklet receives audio, analyzes it, and posts mouthShape messages

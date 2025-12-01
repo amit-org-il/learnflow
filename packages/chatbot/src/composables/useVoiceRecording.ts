@@ -1,4 +1,4 @@
-import { ref, computed, onUnmounted, type ComputedRef } from 'vue';
+import { ref, computed, onUnmounted, getCurrentInstance, type ComputedRef } from 'vue';
 import { AudioRecorder, type AudioRecorderError } from '../lib/audio/AudioRecorder';
 
 export interface UseVoiceRecordingOptions {
@@ -43,6 +43,8 @@ export interface VoiceRecordingActions {
   stopRecording: () => void;
   toggleRecording: () => Promise<void>;
   setVadThreshold: (threshold: number) => void;
+  /** Manual cleanup - call this if composable was initialized outside setup() */
+  cleanup: () => void;
 }
 
 export interface UseVoiceRecordingReturn {
@@ -156,12 +158,23 @@ export function useVoiceRecording(options: UseVoiceRecordingOptions): UseVoiceRe
   // CLEANUP
   // ========================================
 
-  onUnmounted(() => {
+  function cleanup(): void {
     if (recorder) {
       recorder.stop();
       recorder = null;
     }
-  });
+    isRecording.value = false;
+    volumeLevel.value = 0;
+  }
+
+  // Only register onUnmounted if called during component setup
+  // This allows the composable to be used lazily (on button click)
+  const instance = getCurrentInstance();
+  if (instance) {
+    onUnmounted(cleanup);
+  } else {
+    console.log('[useVoiceRecording] Initialized outside setup() - manual cleanup required');
+  }
 
   // ========================================
   // RETURN
@@ -179,7 +192,8 @@ export function useVoiceRecording(options: UseVoiceRecordingOptions): UseVoiceRe
       startRecording,
       stopRecording,
       toggleRecording,
-      setVadThreshold
+      setVadThreshold,
+      cleanup
     }
   };
 }

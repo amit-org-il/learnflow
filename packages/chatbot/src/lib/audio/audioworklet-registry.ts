@@ -41,12 +41,22 @@ export const createWorkletFromSrc = (
   workletName: string,
   workletSrc: string,
 ): string => {
+  const fullScript = `registerProcessor("${workletName}", ${workletSrc})`;
+
+  // Debug: Log first 500 chars of the generated script
+  console.log(`[createWorkletFromSrc] Creating worklet "${workletName}"`);
+  console.log(`[createWorkletFromSrc] Script preview (first 500 chars):`, fullScript.substring(0, 500));
+  console.log(`[createWorkletFromSrc] Script length:`, fullScript.length);
+
   const script = new Blob(
-    [`registerProcessor("${workletName}", ${workletSrc})`],
+    [fullScript],
     {
       type: "application/javascript",
     },
   );
 
-  return URL.createObjectURL(script);
+  const url = URL.createObjectURL(script);
+  console.log(`[createWorkletFromSrc] Blob URL:`, url);
+
+  return url;
 };

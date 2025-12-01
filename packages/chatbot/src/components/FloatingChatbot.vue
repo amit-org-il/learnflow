@@ -494,6 +494,15 @@ watch(() => props.botInfo, (newBotInfo) => {
     currentSpeed.value = botSpeed;
   }
 }, { deep: true, immediate: true });
+
+// Cleanup voice recording when component unmounts
+// (needed because composable may be initialized lazily outside setup)
+onUnmounted(() => {
+  if (liveVoiceRecording.value) {
+    liveVoiceRecording.value.actions.cleanup();
+    liveVoiceRecording.value = null;
+  }
+});
 </script>
 
 <style scoped>
