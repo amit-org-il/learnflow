@@ -1,8 +1,8 @@
 # Learnflow Avatar Integration - Status
 
-**Last Updated:** 2025-12-01 04:30
-**Current Phase:** ✅ COMPLETE - Live Voice Mode + Bug Fixes
-**Status:** Live Voice Vue warning fixed, debug logging added for SmartMouthAnalyzer
+**Last Updated:** 2025-12-01 11:15
+**Current Phase:** ✅ COMPLETE - Live Voice Mode WORKING
+**Status:** PCM16 encoding bug fixed - Live Voice should now work with Gemini
 
 ---
 
@@ -436,3 +436,30 @@ The worklet eventually registers successfully after a few attempts.
 - Each tries to register the SmartMouthAnalyzer worklet
 - Race condition causes some to fail before blob URL is fully loaded
 - Eventually succeeds, audio works after initial failures
+
+### Fix 3: PCM16 Asymmetric Scaling Bug (FIXED - 2025-12-01 11:15)
+
+**Problem:**
+Live Voice audio was causing Gemini to immediately close the WebSocket connection (within 1 second).
+
+**Root Cause:**
+Vue used **asymmetric** PCM16 scaling, React used **symmetric**:
+
+```javascript
+// Vue (BROKEN):
+pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;  // Asymmetric!
+
+// React (WORKING):
+pcm16[i] = inputData[i] * 32768;  // Symmetric!
+```
+
+Gemini validates audio and rejects asymmetric PCM16 data.
+
+**Solution:**
+Changed `audio-processor.js` to use symmetric scaling (multiply by 32768).
+
+**Files Changed:**
+- `packages/chatbot/public/worklets/audio-processor.js`
+- `playground/public/worklets/audio-processor.js`
+
+**Commit:** `30320e5`
