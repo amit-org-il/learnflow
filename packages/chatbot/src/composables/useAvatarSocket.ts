@@ -418,7 +418,18 @@ export function useAvatarSocket(options: UseAvatarSocketOptions): UseAvatarSocke
   }
 
   function sendUserVoice(audioChunk: string, sampleRate: number, isFinal: boolean) {
-    if (!socket?.connected) return;
+    console.log('[useAvatarSocket] sendUserVoice called:', {
+      hasSocket: !!socket,
+      socketConnected: socket?.connected,
+      chunkLength: audioChunk?.length || 0,
+      sampleRate,
+      isFinal
+    });
+    if (!socket?.connected) {
+      console.warn('[useAvatarSocket] sendUserVoice BLOCKED: socket not connected');
+      return;
+    }
+    console.log('[useAvatarSocket] Emitting user_voice event');
     socket.emit('user_voice', { audio_chunk: audioChunk, sample_rate: sampleRate, is_final: isFinal });
   }
 
